@@ -1,0 +1,12 @@
+Flask
+flask-cors
+Flask-RESTful
+Flask-JWT-Extended
+SQLAlchemy
+alembic
+python-nmap
+requests
+python-dotenv
+celery
+redis
+gunicorn
