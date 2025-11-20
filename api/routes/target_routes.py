@@ -1,59 +1,54 @@
-from flask import Blueprint, request
-from api.db import DATABASE, generate_id
+# api/routes/target_routes.py
+from fastapi import APIRouter, Depends, HTTPException
+from sqlalchemy.orm import Session
+from core.database import get_db
+from core import models
+from api.utils import require_auth
 
-target_bp = Blueprint("target_bp", __name__)
+router = APIRouter(prefix="/targets", tags=["Targets"])
 
-# CREATE
-@target_bp.route("/", methods=["POST"])
-def create_target():
-    data = request.json
-    target_name = data.get("name")
-    ip = data.get("ip")
+@router.post("/")
+def create_target(target: dict, db: Session = Depends(get_db), user=Depends(require_auth)):
+    new_target = models.Target(
+        name=target.get("name"),
+        address=target.get("address"),
+        group_id=target.get("group_id"),
+        tags=target.get("tags"),
+        os_detected=target.get("os_detected")
+    )
+    db.add(new_target)
+    db.commit()
+    db.refresh(new_target)
+    return {"message": "Target created", "target_id": new_target.id}
 
-    if not target_name or not ip:
-        return {"error": "name and ip are required"}, 400
+@router.get("/")
+def list_targets(db: Session = Depends(get_db), user=Depends(require_auth)):
+    targets = db.query(models.Target).all()
+    return {"targets": targets}
 
-    target = {
-        "id": generate_id("targets"),
-        "name": target_name,
-        "ip": ip
-    }
+@router.get("/{target_id}")
+def get_target(target_id: int, db: Session = Depends(get_db), user=Depends(require_auth)):
+    target = db.query(models.Target).filter(models.Target.id == target_id).first()
+    if not target:
+        raise HTTPException(status_code=404, detail="Target not found")
+    return target
 
-    DATABASE["targets"].append(target)
-    return {"message": "target created", "target": target}, 201
+@router.put("/{target_id}")
+def update_target(target_id: int, payload: dict, db: Session = Depends(get_db), user=Depends(require_auth)):
+    target = db.query(models.Target).filter(models.Target.id == target_id).first()
+    if not target:
+        raise HTTPException(status_code=404, detail="Target not found")
+    for key, value in payload.items():
+        setattr(target, key, value)
+    db.commit()
+    db.refresh(target)
+    return {"message": "Updated", "target": target}
 
-
-# READ ALL
-@target_bp.route("/", methods=["GET"])
-def list_targets():
-    return {"targets": DATABASE["targets"]}, 200
-
-
-# READ ONE
-@target_bp.route("/<int:target_id>", methods=["GET"])
-def get_target(target_id):
-    for t in DATABASE["targets"]:
-        if t["id"] == target_id:
-            return t
-    return {"error": "target not found"}, 404
-
-
-# UPDATE
-@target_bp.route("/<int:target_id>", methods=["PUT"])
-def update_target(target_id):
-    data = request.json
-    for t in DATABASE["targets"]:
-        if t["id"] == target_id:
-            t.update(data)
-            return {"message": "updated", "target": t}
-    return {"error": "target not found"}, 404
-
-
-# DELETE
-@target_bp.route("/<int:target_id>", methods=["DELETE"])
-def delete_target(target_id):
-    for t in DATABASE["targets"]:
-        if t["id"] == target_id:
-            DATABASE["targets"].remove(t)
-            return {"message": "deleted"}
-    return {"error": "target not found"}, 404
+@router.delete("/{target_id}")
+def delete_target(target_id: int, db: Session = Depends(get_db), user=Depends(require_auth)):
+    target = db.query(models.Target).filter(models.Target.id == target_id).first()
+    if not target:
+        raise HTTPException(status_code=404, detail="Target not found")
+    db.delete(target)
+    db.commit()
+    return {"message": "Deleted"}

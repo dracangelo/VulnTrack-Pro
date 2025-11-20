@@ -1,6 +1,5 @@
 import os
 from logging.config import fileConfig
-
 from sqlalchemy import engine_from_config, pool
 from alembic import context
 from dotenv import load_dotenv
@@ -22,7 +21,7 @@ if config.config_file_name is not None:
 # Import your SQLAlchemy models
 from core.database import Base
 from core import models
-
+from core import scan  
 target_metadata = Base.metadata
 
 # --- Migration functions ---

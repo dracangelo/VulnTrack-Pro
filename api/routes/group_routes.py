@@ -1,60 +1,24 @@
-from flask import Blueprint, request
-from api.db import DATABASE, generate_id
+# api/routes/group_routes.py
+from fastapi import APIRouter, Depends, HTTPException
+from sqlalchemy.orm import Session
+from core.database import get_db
+from core import models
+from api.utils import require_auth
 
-group_bp = Blueprint("group_bp", __name__)
+router = APIRouter(prefix="/groups", tags=["Target Groups"])
 
+@router.post("/")
+def create_group(group: dict, db: Session = Depends(get_db), user=Depends(require_auth)):
+    new_group = models.TargetGroup(
+        name=group["name"],
+        description=group.get("description")
+    )
+    db.add(new_group)
+    db.commit()
+    db.refresh(new_group)
+    return {"message": "Group created", "group_id": new_group.id}
 
-# CREATE GROUP
-@group_bp.route("/", methods=["POST"])
-def create_group():
-    data = request.json
-    name = data.get("name")
-    targets = data.get("targets", [])
-
-    if not name:
-        return {"error": "name required"}, 400
-
-    group = {
-        "id": generate_id("groups"),
-        "name": name,
-        "targets": targets,
-    }
-
-    DATABASE["groups"].append(group)
-    return {"message": "group created", "group": group}, 201
-
-
-# LIST GROUPS
-@group_bp.route("/", methods=["GET"])
-def list_groups():
-    return {"groups": DATABASE["groups"]}
-
-
-# GET ONE GROUP
-@group_bp.route("/<int:group_id>", methods=["GET"])
-def get_group(group_id):
-    for g in DATABASE["groups"]:
-        if g["id"] == group_id:
-            return g
-    return {"error": "group not found"}, 404
-
-
-# UPDATE GROUP
-@group_bp.route("/<int:group_id>", methods=["PUT"])
-def update_group(group_id):
-    data = request.json
-    for g in DATABASE["groups"]:
-        if g["id"] == group_id:
-            g.update(data)
-            return {"message": "updated", "group": g}
-    return {"error": "group not found"}, 404
-
-
-# DELETE GROUP
-@group_bp.route("/<int:group_id>", methods=["DELETE"])
-def delete_group(group_id):
-    for g in DATABASE["groups"]:
-        if g["id"] == group_id:
-            DATABASE["groups"].remove(g)
-            return {"message": "deleted"}
-    return {"error": "group not found"}, 404
+@router.get("/")
+def list_groups(db: Session = Depends(get_db), user=Depends(require_auth)):
+    groups = db.query(models.TargetGroup).all()
+    return {"groups": groups}

@@ -1,28 +1,30 @@
-from flask import Flask
-from api.routes.scan_routes import scan_bp
-from api.routes.report_routes import report_bp
-from api.routes.ticket_routes import ticket_bp
-from api.routes.target_routes import target_bp
-from api.routes.group_routes import group_bp
-from api.routes.user_routes import user_bp
+from fastapi import FastAPI
+from fastapi.staticfiles import StaticFiles
+from fastapi.responses import FileResponse
 
-def create_app():
-    app = Flask(__name__)
+from api.routes.auth import router as auth_router
+from api.routes.user_routes import router as user_router
+from api.routes.target_routes import router as target_router
+from api.routes.group_routes import router as group_router
+from api.routes.scan_routes import router as scan_router
+from api.routes.report_routes import router as report_router
+from api.routes.ticket_routes import router as ticket_router
 
-    # BASIC CONFIG
-    app.config["JSON_SORT_KEYS"] = False
+app = FastAPI(title="VulnScanner API")
+app.mount("/static", StaticFiles(directory="frontend"), name="static")
 
-    # REGISTER BLUEPRINTS
-    app.register_blueprint(scan_bp, url_prefix="/api/scans")
-    app.register_blueprint(report_bp, url_prefix="/api/reports")
-    app.register_blueprint(ticket_bp, url_prefix="/api/tickets")
-    app.register_blueprint(target_bp, url_prefix="/api/targets")
-    app.register_blueprint(group_bp, url_prefix="/api/groups")
-    app.register_blueprint(user_bp, url_prefix="/api/users")
+app.include_router(auth_router)
+app.include_router(user_router)
+app.include_router(target_router)
+app.include_router(group_router)
+app.include_router(scan_router)
+app.include_router(report_router)
+app.include_router(ticket_router)
 
-    # HEALTH CHECK
-    @app.route("/api/health", methods=["GET"])
-    def health_check():
-        return {"status": "ok", "message": "VaultBox API running"}
+@app.get("/")
+def serve_index():
+    return FileResponse("frontend/index.html")
 
-    return app
+@app.get("/login")
+def serve_login():
+    return FileResponse("frontend/login.html")

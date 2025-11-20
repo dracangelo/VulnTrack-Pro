@@ -1,56 +1,42 @@
-<!DOCTYPE html>
-<html lang="en">
+<!-- frontend/index.html -->
+<!doctype html>
+<html>
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>VaultBox - Targets</title>
-
-  <!-- Tailwind via CDN -->
+  <meta charset="utf-8" />
+  <title>VulnTrack Pro — Dashboard</title>
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
   <script src="https://cdn.tailwindcss.com"></script>
-
+  <link rel="stylesheet" href="/static/styles.css">
 </head>
-<body class="bg-gray-900 text-gray-200 min-h-screen">
-
-  <div class="container mx-auto p-8">
-
-    <h1 class="text-3xl font-bold mb-6">VaultBox - Target Manager</h1>
-
-    <!-- Create Target Form -->
-    <div class="bg-gray-800 p-6 rounded-lg shadow mb-8">
-      <h2 class="text-xl font-semibold mb-4">Add New Target</h2>
-
-      <form id="addTargetForm" class="space-y-4">
-        <input
-          type="text"
-          id="targetName"
-          placeholder="Target Name"
-          class="w-full p-3 rounded bg-gray-700 text-gray-200"
-        >
-        <input
-          type="text"
-          id="targetIP"
-          placeholder="Target IP (e.g. 192.168.0.10)"
-          class="w-full p-3 rounded bg-gray-700 text-gray-200"
-        >
-
-        <button
-          type="submit"
-          class="px-4 py-2 bg-blue-600 hover:bg-blue-700 rounded shadow font-semibold"
-        >
-          Add Target
-        </button>
-      </form>
+<body class="bg-gray-900 text-gray-100 min-h-screen">
+  <div class="container mx-auto p-6">
+    <div class="flex justify-between items-center mb-6">
+      <h1 class="text-3xl font-bold">VulnTrack Pro</h1>
+      <button id="logoutBtn" class="px-3 py-2 bg-red-600 rounded">Logout</button>
     </div>
 
-    <!-- Target List -->
-    <div class="bg-gray-800 p-6 rounded-lg shadow">
-      <h2 class="text-xl font-semibold mb-4">Existing Targets</h2>
+    <div class="grid grid-cols-3 gap-6">
+      <div class="col-span-1 bg-gray-800 p-4 rounded">
+        <h2 class="font-semibold mb-2">Add Target</h2>
+        <form id="addTargetForm" class="space-y-2">
+          <input id="targetName" placeholder="Name" class="w-full p-2 bg-gray-700 rounded" />
+          <input id="targetIP" placeholder="IP or hostname" class="w-full p-2 bg-gray-700 rounded" />
+          <button type="submit" class="px-3 py-2 bg-blue-600 rounded">Add</button>
+        </form>
+      </div>
 
-      <div id="targetList" class="space-y-3"></div>
+      <div class="col-span-2 bg-gray-800 p-4 rounded">
+        <h2 class="font-semibold mb-2">Targets</h2>
+        <div id="targetList" class="space-y-2"></div>
+      </div>
     </div>
-
   </div>
 
-  <script src="app.js"></script>
+  <script src="/static/app.js"></script>
+  <script>
+    if (!localStorage.getItem("token")) {
+      window.location.href = "/login";
+    }
+  </script>
 </body>
 </html>

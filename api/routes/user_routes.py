@@ -1,51 +1,20 @@
-from flask import Blueprint, request
-from api.db import DATABASE, generate_id
+# api/routes/user_routes.py
+from fastapi import APIRouter, Depends, HTTPException
+from sqlalchemy.orm import Session
+from core.database import get_db
+from core import models
+from api.utils import require_auth
 
-user_bp = Blueprint("user_bp", __name__)
+router = APIRouter(prefix="/users", tags=["Users"])
 
+@router.get("/")
+def list_users(db: Session = Depends(get_db), user=Depends(require_auth)):
+    users = db.query(models.User).all()
+    return {"users": users}
 
-# CREATE USER
-@user_bp.route("/", methods=["POST"])
-def create_user():
-    data = request.json
-    username = data.get("username")
-    role = data.get("role", "viewer")
-
-    if not username:
-        return {"error": "username required"}, 400
-
-    user = {
-        "id": generate_id("users"),
-        "username": username,
-        "role": role
-    }
-
-    DATABASE["users"].append(user)
-    return {"message": "user created", "user": user}, 201
-
-
-# LIST USERS
-@user_bp.route("/", methods=["GET"])
-def list_users():
-    return {"users": DATABASE["users"]}
-
-
-# UPDATE USER
-@user_bp.route("/<int:user_id>", methods=["PUT"])
-def update_user(user_id):
-    data = request.json
-    for u in DATABASE["users"]:
-        if u["id"] == user_id:
-            u.update(data)
-            return {"message": "updated", "user": u}
-    return {"error": "user not found"}, 404
-
-
-# DELETE USER
-@user_bp.route("/<int:user_id>", methods=["DELETE"])
-def delete_user(user_id):
-    for u in DATABASE["users"]:
-        if u["id"] == user_id:
-            DATABASE["users"].remove(u)
-            return {"message": "deleted"}
-    return {"error": "user not found"}, 404
+@router.get("/{user_id}")
+def get_user(user_id: int, db: Session = Depends(get_db), user=Depends(require_auth)):
+    user_obj = db.query(models.User).filter(models.User.id == user_id).first()
+    if not user_obj:
+        raise HTTPException(status_code=404, detail="User not found")
+    return user_obj
