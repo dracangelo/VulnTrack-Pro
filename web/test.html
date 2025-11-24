@@ -1,0 +1,73 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+    <title>VulnTrack Test</title>
+    <style>
+        body {
+            font-family: Arial;
+            padding: 20px;
+        }
+
+        .test {
+            margin: 20px 0;
+            padding: 15px;
+            border: 1px solid #ccc;
+        }
+
+        .success {
+            background: #d4edda;
+        }
+
+        .error {
+            background: #f8d7da;
+        }
+    </style>
+</head>
+
+<body>
+    <h1>VulnTrack Pro - Diagnostic Test</h1>
+
+    <div class="test">
+        <h2>Test 1: JavaScript Loading</h2>
+        <p id="jsTest">JavaScript NOT loaded</p>
+    </div>
+
+    <div class="test">
+        <h2>Test 2: Form Submission</h2>
+        <form id="testForm" action="javascript:void(0)">
+            <input type="text" name="test" placeholder="Enter anything" required>
+            <button type="submit">Submit Test</button>
+        </form>
+        <p id="formResult">Not submitted yet</p>
+    </div>
+
+    <div class="test">
+        <h2>Test 3: Button Click</h2>
+        <button onclick="testClick()">Click Me</button>
+        <p id="clickResult">Not clicked yet</p>
+    </div>
+
+    <script>
+        // Test 1
+        document.getElementById('jsTest').textContent = '✓ JavaScript IS loaded!';
+        document.getElementById('jsTest').parentElement.classList.add('success');
+
+        // Test 2
+        document.getElementById('testForm').addEventListener('submit', (e) => {
+            e.preventDefault();
+            document.getElementById('formResult').textContent = '✓ Form submitted via JavaScript!';
+            document.getElementById('formResult').parentElement.classList.add('success');
+        });
+
+        // Test 3
+        function testClick() {
+            document.getElementById('clickResult').textContent = '✓ Button click works!';
+            document.getElementById('clickResult').parentElement.classList.add('success');
+        }
+
+        console.log('Diagnostic test page loaded successfully');
+    </script>
+</body>
+
+</html>
