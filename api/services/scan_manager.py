@@ -6,6 +6,7 @@ from api.extensions import db
 from api.models.scan import Scan
 from api.models.target import Target
 from api.services.nmap_service import NmapService
+from api.services.nmap_realtime_parser import NmapRealtimeParser
 from api.services.openvas_service import OpenVASService
 from api.services.plugin_loader import PluginLoader
 from api.services.scan_queue import ScanQueue
@@ -14,15 +15,16 @@ class ScanManager:
     def __init__(self, app):
         self.app = app # Need app context for DB operations in threads
         self.nmap_service = NmapService()
+        self.nmap_realtime = NmapRealtimeParser(scan_manager=self)
         self.openvas_service = OpenVASService()
         self.plugin_loader = PluginLoader()
-        self.active_scans = {}  # {scan_id: {'thread': thread, 'should_cancel': False}}
+        self.active_scans = {}  # {scan_id: {'thread': thread, 'should_cancel': False, 'parser': None}}
         
         # Initialize scan queue
         from api.config import Config
         self.scan_queue = ScanQueue(max_concurrent=Config.MAX_CONCURRENT_SCANS)
 
-    def start_scan(self, target_id, scan_type, scanner_args=None):
+    def start_scan(self, target_id, scan_type, scanner_args=None, openvas_config_id=None):
         """
         Starts a scan in a background thread or queues it if at capacity.
         """
@@ -33,7 +35,8 @@ class ScanManager:
             status='pending', 
             started_at=datetime.utcnow(),
             progress=0,
-            current_step='Initializing scan...'
+            current_step='Initializing scan...',
+            openvas_config_id=openvas_config_id
         )
         db.session.add(scan)
         db.session.commit()
@@ -43,7 +46,7 @@ class ScanManager:
         # Check if we can start immediately or need to queue
         if len(self.active_scans) >= self.scan_queue.max_concurrent:
             # Queue the scan
-            queue_position = self.scan_queue.add_to_queue(scan_id, target_id, scan_type, scanner_args)
+            queue_position = self.scan_queue.add_to_queue(scan_id, target_id, scan_type, scanner_args, openvas_config_id)
             scan.status = 'queued'
             scan.current_step = f'Queued (position {queue_position})'
             scan.queue_position = queue_position
@@ -60,19 +63,24 @@ class ScanManager:
             return scan_id
         
         # Start scan immediately
-        self._start_scan_thread(scan_id, target_id, scan_type, scanner_args)
+        self._start_scan_thread(scan_id, target_id, scan_type, scanner_args, openvas_config_id)
         return scan_id
     
-    def _start_scan_thread(self, scan_id, target_id, scan_type, scanner_args):
+    
+    def _start_scan_thread(self, scan_id, target_id, scan_type, scanner_args, openvas_config_id=None):
         """Start a scan thread"""
         # Start background thread
-        thread = threading.Thread(target=self._run_scan, args=(scan_id, target_id, scan_type, scanner_args))
+        thread = threading.Thread(
+            target=self._run_scan, 
+            args=(scan_id, target_id, scan_type, scanner_args, openvas_config_id)
+        )
         thread.daemon = True
         
         # Track active scan
         self.active_scans[scan_id] = {
             'thread': thread,
-            'should_cancel': False
+            'should_cancel': False,
+            'parser': None
         }
         
         thread.start()
@@ -81,6 +89,10 @@ class ScanManager:
         """Request cancellation of a running scan"""
         if scan_id in self.active_scans:
             self.active_scans[scan_id]['should_cancel'] = True
+            # Cancel parser if it exists
+            parser = self.active_scans[scan_id].get('parser')
+            if parser:
+                parser.cancel()
             return True
         return False
 
@@ -121,7 +133,7 @@ class ScanManager:
                     'target_name': scan.target.name if scan.target else 'Unknown'
                 }, room=f'scan_{scan_id}', namespace='/scan-progress')
 
-    def _run_scan(self, scan_id, target_id, scan_type, scanner_args):
+    def _run_scan(self, scan_id, target_id, scan_type, scanner_args, openvas_config_id=None):
         """
         Internal method to run the scan logic.
         """
@@ -151,7 +163,7 @@ class ScanManager:
                 if scan_type == 'nmap':
                     self._run_nmap_scan(scan_id, target, scanner_args)
                 elif scan_type == 'openvas':
-                    self._run_openvas_scan(scan_id, target)
+                    self._run_openvas_scan(scan_id, target, openvas_config_id)
                 elif scan_type.startswith('plugin:'):
                     plugin_name = scan_type.split(':')[1]
                     scan.current_step = f'Running plugin: {plugin_name}'
@@ -212,7 +224,8 @@ class ScanManager:
                     next_scan['scan_id'],
                     next_scan['target_id'],
                     next_scan['scan_type'],
-                    next_scan['scanner_args']
+                    next_scan['scanner_args'],
+                    next_scan.get('openvas_config_id')
                 )
                 
                 # Emit WebSocket event
@@ -223,7 +236,7 @@ class ScanManager:
                 }, namespace='/scan-progress')
 
     def _run_nmap_scan(self, scan_id, target, scanner_args):
-        """Run Nmap scan with progress tracking"""
+        """Run Nmap scan with real-time progress tracking"""
         with self.app.app_context():
             scan = Scan.query.get(scan_id)
             
@@ -239,38 +252,57 @@ class ScanManager:
                 db.session.commit()
                 return
             
-            # Run Nmap scan
+            # Create real-time parser instance
+            parser = NmapRealtimeParser(scan_manager=self)
+            
+            # Store parser in active_scans for cancellation
+            if scan_id in self.active_scans:
+                self.active_scans[scan_id]['parser'] = parser
+            
+            # Run Nmap scan with real-time parsing
             scan.progress = 20
-            scan.current_step = 'Scanning ports...'
+            scan.current_step = 'Starting Nmap scan...'
             db.session.commit()
             
-            raw_results = self.nmap_service.scan_target(target.ip_address, scanner_args or '-F')
+            raw_results = parser.scan_target(
+                target.ip_address, 
+                scanner_args or '-F',
+                scan_id,
+                self.app.app_context()
+            )
             
             # Check cancellation
-            if self.is_cancelled(scan_id):
+            if self.is_cancelled(scan_id) or raw_results.get('cancelled'):
                 scan.status = 'cancelled'
                 scan.current_step = 'Scan cancelled'
                 db.session.commit()
                 return
             
-            # Simulate progress updates (in real implementation, parse Nmap output)
-            scan.progress = 60
-            scan.current_step = 'Analyzing results...'
-            db.session.commit()
+            # Check for errors
+            if 'error' in raw_results and not raw_results.get('cancelled'):
+                scan.status = 'failed'
+                scan.current_step = f"Error: {raw_results['error']}"
+                scan.raw_output = json.dumps(raw_results)
+                db.session.commit()
+                return
             
-            results = self.nmap_service.normalize_results(raw_results)
-            
+            # Normalize results
             scan.progress = 90
-            scan.current_step = 'Finalizing...'
+            scan.current_step = 'Finalizing results...'
             db.session.commit()
             
-            scan.raw_output = json.dumps(results)
+            normalized = parser.normalize_results(raw_results)
+            
+            scan.raw_output = json.dumps({
+                'results': normalized,
+                'raw': raw_results.get('raw_output', '')
+            })
             scan.status = 'completed'
             scan.progress = 100
             scan.current_step = 'Scan completed'
             db.session.commit()
 
-    def _run_openvas_scan(self, scan_id, target):
+    def _run_openvas_scan(self, scan_id, target, config_id=None):
         """Run OpenVAS scan with progress tracking"""
         with self.app.app_context():
             scan = Scan.query.get(scan_id)
@@ -287,12 +319,12 @@ class ScanManager:
                     password=os.getenv('OPENVAS_PASSWORD', 'admin')
                 )
                 
-                # Launch scan
+                # Launch scan with optional config
                 scan.progress = 10
                 scan.current_step = 'Connecting to OpenVAS...'
                 db.session.commit()
                 
-                task_id, report_id = scanner.launch_scan(target.name, target.ip_address)
+                task_id, report_id = scanner.launch_scan(target.name, target.ip_address, config_id)
                 
                 if not task_id:
                     scan.status = 'failed'

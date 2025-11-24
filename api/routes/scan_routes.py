@@ -43,7 +43,15 @@ def create_scan():
     # In a real app, this should probably be a singleton or initialized in app context
     scan_manager = ScanManager(current_app._get_current_object())
     
-    scan_id = scan_manager.start_scan(data['target_id'], data['scan_type'], data.get('args'))
+    # Extract OpenVAS config if provided
+    openvas_config_id = data.get('openvas_config_id')
+    
+    scan_id = scan_manager.start_scan(
+        data['target_id'], 
+        data['scan_type'], 
+        data.get('args'),
+        openvas_config_id=openvas_config_id
+    )
     
     return jsonify({'message': 'Scan started', 'scan_id': scan_id}), 201
 

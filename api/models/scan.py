@@ -20,6 +20,7 @@ class Scan(db.Model):
     # OpenVAS integration
     openvas_task_id = db.Column(db.String(255))
     openvas_report_id = db.Column(db.String(255))
+    openvas_config_id = db.Column(db.String(255))  # Selected OpenVAS scan config
     
     # Vulnerability tracking
     vuln_count = db.Column(db.Integer, default=0)

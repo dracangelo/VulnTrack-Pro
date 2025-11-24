@@ -10,7 +10,7 @@ class ScanQueue:
         self.queue = deque()  # Pending scans
         self.lock = Lock()
     
-    def add_to_queue(self, scan_id, target_id, scan_type, scanner_args):
+    def add_to_queue(self, scan_id, target_id, scan_type, scanner_args, openvas_config_id=None):
         """Add scan to queue"""
         with self.lock:
             self.queue.append({
@@ -18,6 +18,7 @@ class ScanQueue:
                 'target_id': target_id,
                 'scan_type': scan_type,
                 'scanner_args': scanner_args,
+                'openvas_config_id': openvas_config_id,
                 'queued_at': datetime.utcnow()
             })
             return len(self.queue)  # Return queue position

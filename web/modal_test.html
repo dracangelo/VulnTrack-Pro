@@ -1,0 +1,36 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+    <title>Modal Test</title>
+</head>
+
+<body>
+    <h1>Testing Modal Function</h1>
+    <button onclick="testModal()">Test Modal</button>
+
+    <div id="testModal" class="hidden"
+        style="position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.8);">
+        <div style="background: white; padding: 20px; margin: 100px auto; max-width: 500px;">
+            <h2>Modal Works!</h2>
+            <button onclick="hideTestModal()">Close</button>
+        </div>
+    </div>
+
+    <script>
+        function testModal() {
+            console.log('testModal called');
+            document.getElementById('testModal').classList.remove('hidden');
+        }
+
+        function hideTestModal() {
+            document.getElementById('testModal').classList.add('hidden');
+        }
+
+        // Test if function is accessible
+        console.log('testModal function:', typeof testModal);
+        console.log('window.testModal:', typeof window.testModal);
+    </script>
+</body>
+
+</html>

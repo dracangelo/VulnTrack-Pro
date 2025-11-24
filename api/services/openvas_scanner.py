@@ -146,7 +146,35 @@ class OpenVASScanner:
         
         return vulnerabilities
     
-    def launch_scan(self, target_name, target_ip):
+    
+    def get_scan_configs(self):
+        """Fetch available scan configurations from OpenVAS"""
+        try:
+            if not self.connect():
+                return []
+            
+            configs_response = self.gmp.get_scan_configs()
+            configs = []
+            
+            for config in configs_response.xpath('config'):
+                config_id = config.get('id')
+                name = config.find('name').text if config.find('name') is not None else 'Unknown'
+                
+                # Only include usable configs (not trash)
+                if config.find('trash').text == '0':
+                    configs.append({
+                        'id': config_id,
+                        'name': name
+                    })
+            
+            self.disconnect()
+            return configs
+            
+        except Exception as e:
+            print(f"Error fetching scan configs: {e}")
+            return []
+    
+    def launch_scan(self, target_name, target_ip, config_id=None):
         """Complete workflow: create target, task, and start scan"""
         try:
             if not self.connect():
@@ -157,8 +185,8 @@ class OpenVASScanner:
             if not target_id:
                 return None, None
             
-            # Create task
-            task_id = self.create_task(f"Scan: {target_name}", target_id)
+            # Create task with optional config
+            task_id = self.create_task(f"Scan: {target_name}", target_id, config_id)
             if not task_id:
                 return None, None
             

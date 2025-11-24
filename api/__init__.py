@@ -27,7 +27,7 @@ def create_app():
     csp = {
         'default-src': "'self'",
         'script-src': ["'self'", "'unsafe-inline'", "https://cdn.tailwindcss.com", "https://cdn.jsdelivr.net", "https://cdn.socket.io"],
-        'style-src': ["'self'", "'unsafe-inline'", "https://cdn.jsdelivr.net"],
+        'style-src': ["'self'", "'unsafe-inline'", "https://cdn.jsdelivr.net", "https://cdnjs.cloudflare.com"],
         'font-src': ["'self'", "https://cdnjs.cloudflare.com"],
     }
     Talisman(app, force_https=False, content_security_policy=csp)
@@ -41,6 +41,8 @@ def create_app():
     from api.routes.user_routes import user_bp
     from api.routes.vuln_routes import vuln_bp
     from api.routes.activity_routes import activity_bp
+    from api.routes.openvas_routes import openvas_bp
+    from api.routes.schedule_routes import schedule_bp
 
     app.register_blueprint(scan_bp)
     app.register_blueprint(report_bp)
@@ -50,9 +52,15 @@ def create_app():
     app.register_blueprint(user_bp)
     app.register_blueprint(vuln_bp)
     app.register_blueprint(activity_bp)
+    app.register_blueprint(openvas_bp)
+    app.register_blueprint(schedule_bp)
     
     # Register WebSocket events
     from api import socket_events
+    
+    # Initialize Scheduler Service
+    from api.services.scheduler_service import SchedulerService
+    app.scheduler_service = SchedulerService(app)
     
     # Configure Logging
     from api.logger import configure_logging

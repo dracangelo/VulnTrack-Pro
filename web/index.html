@@ -42,6 +42,10 @@
                 <i class="fas fa-ticket-alt"></i>
                 Tickets
             </a>
+            <a href="#" class="nav-item" data-section="schedules">
+                <i class="fas fa-clock"></i>
+                Schedules
+            </a>
             <a href="#" class="nav-item" data-section="settings">
                 <i class="fas fa-cog"></i>
                 Settings
@@ -108,67 +112,58 @@
             <div class="page-header">
                 <div class="breadcrumb">Home / Scans</div>
                 <h1 class="page-title">Scan Management</h1>
-                <!-- Scans Section -->
-                <div id="scansSection" class="hidden">
-                    <div class="card-header">
-                        <h2 class="card-title">SCAN MANAGEMENT</h2>
-                        <button class="btn btn-primary" onclick="showNewScanModal()">
-                            <i class="fas fa-plus-circle"></i> New Scan
-                        </button>
-                    </div>
+            </div>
 
-                    <!-- Active Scans -->
-                    <div class="card" style="margin-bottom: 1.5rem;">
-                        <div class="card-header">
-                            <h3 class="card-title" style="font-size: 1.125rem;">Active Scans (<span
-                                    id="activeScanCount">0</span>/<span id="maxConcurrent">3</span>)</h3>
-                            <button class="btn btn-secondary" onclick="refreshQueueStatus()"
-                                style="padding: 0.5rem 1rem;">
-                                <i class="fas fa-sync-alt"></i> Refresh
-                            </button>
-                        </div>
-                        <div id="activeScansContainer">
-                            <p style="color: var(--text-secondary); padding: 1rem;">No active scans</p>
-                        </div>
-                    </div>
-
-                    <!-- Queued Scans -->
-                    <div class="card" style="margin-bottom: 1.5rem;">
-                        <div class="card-header">
-                            <h3 class="card-title" style="font-size: 1.125rem;">Queued Scans (<span
-                                    id="queueSize">0</span>)</h3>
-                        </div>
-                        <div id="queuedScansContainer">
-                            <p style="color: var(--text-secondary); padding: 1rem;">No queued scans</p>
-                        </div>
-                    </div>
-
-                    <!-- All Scans -->
-                    <div class="card">
-                        <div class="card-header">
-                            <h3 class="card-title" style="font-size: 1.125rem;">All Scans</h3>
-                        </div>
-                        <table class="data-table">
-                            <thead>
-                                <tr>
-                                    <th>ID</th>
-                                    <th>Target</th>
-                                    <th>Type</th>
-                                    <th>Status</th>
-                                    <th>Progress</th>
-                                    <th>Started</th>
-                                    <th>Actions</th>
-                                </tr>
-                            </thead>
-                            <tbody id="scansList">
-                                <tr>
-                                    <td colspan="7" style="text-align: center; color: var(--text-secondary);">No scans
-                                        yet</td>
-                                </tr>
-                            </tbody>
-                        </table>
-                    </div>
+            <!-- Active Scans -->
+            <div class="card" style="margin-bottom: 1.5rem;">
+                <div class="card-header">
+                    <h3 class="card-title" style="font-size: 1.125rem;">Active Scans (<span
+                            id="activeScanCount">0</span>/<span id="maxConcurrent">3</span>)</h3>
+                    <button class="btn btn-secondary" onclick="refreshQueueStatus()" style="padding: 0.5rem 1rem;">
+                        <i class="fas fa-sync-alt"></i> Refresh
+                    </button>
                 </div>
+                <div id="activeScansContainer">
+                    <p style="color: var(--text-secondary); padding: 1rem;">No active scans</p>
+                </div>
+            </div>
+
+            <!-- Queued Scans -->
+            <div class="card" style="margin-bottom: 1.5rem;">
+                <div class="card-header">
+                    <h3 class="card-title" style="font-size: 1.125rem;">Queued Scans (<span id="queueSize">0</span>)
+                    </h3>
+                </div>
+                <div id="queuedScansContainer">
+                    <p style="color: var(--text-secondary); padding: 1rem;">No queued scans</p>
+                </div>
+            </div>
+
+            <!-- All Scans -->
+            <div class="card">
+                <div class="card-header">
+                    <h3 class="card-title" style="font-size: 1.125rem;">All Scans</h3>
+                </div>
+                <table class="data-table">
+                    <thead>
+                        <tr>
+                            <th>ID</th>
+                            <th>Target</th>
+                            <th>Type</th>
+                            <th>Status</th>
+                            <th>Progress</th>
+                            <th>Started</th>
+                            <th>Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody id="scansList">
+                        <tr>
+                            <td colspan="7" style="text-align: center; color: var(--text-secondary);">No scans
+                                yet</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
         </section>
 
         <!-- Targets Section -->
@@ -326,6 +321,41 @@
             </div>
         </section>
 
+        <!-- Schedules Section -->
+        <section id="schedules-section" class="content-section hidden">
+            <div class="page-header">
+                <div class="breadcrumb">Home / Schedules</div>
+                <h1 class="page-title">Scan Schedules</h1>
+            </div>
+
+            <div class="card">
+                <div class="card-header">
+                    <h3 class="card-title">Scheduled Scans</h3>
+                    <button class="btn btn-primary" onclick="showNewScheduleModal()">
+                        <i class="fas fa-plus"></i> New Schedule
+                    </button>
+                </div>
+                <div class="table-container">
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>Name</th>
+                                <th>Target</th>
+                                <th>Scan Type</th>
+                                <th>Schedule</th>
+                                <th>Next Run</th>
+                                <th>Status</th>
+                                <th>Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody id="scheduleList">
+                            <!-- Populated by JS -->
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </section>
+
         <!-- Settings Section -->
         <section id="settings-section" class="content-section hidden">
             <div class="page-header">
@@ -362,14 +392,25 @@
                     <label class="form-label">Scan Type</label>
                     <div class="radio-group">
                         <label class="radio-item">
-                            <input type="radio" name="scan_type" value="nmap_quick" checked>
+                            <input type="radio" name="scan_type" value="nmap_quick" checked
+                                onchange="toggleOpenVASConfig()">
                             <span>Nmap Quick</span>
                         </label>
                         <label class="radio-item">
-                            <input type="radio" name="scan_type" value="nmap_full">
+                            <input type="radio" name="scan_type" value="nmap_full" onchange="toggleOpenVASConfig()">
                             <span>Nmap Full</span>
                         </label>
+                        <label class="radio-item">
+                            <input type="radio" name="scan_type" value="openvas" onchange="toggleOpenVASConfig()">
+                            <span>OpenVAS</span>
+                        </label>
                     </div>
+                </div>
+                <div class="form-group" id="openvasConfigGroup" style="display: none;">
+                    <label class="form-label">OpenVAS Configuration</label>
+                    <select class="form-select" name="openvas_config_id" id="openvasConfigSelect">
+                        <option value="">Loading configurations...</option>
+                    </select>
                 </div>
                 <div class="flex gap-4">
                     <button type="button" class="btn btn-secondary" onclick="hideNewScanModal()">Cancel</button>
@@ -460,6 +501,24 @@
                 </div>
             </div>
 
+            <!-- Discovered Hosts and Ports -->
+            <div style="margin-bottom: 1.5rem;">
+                <h4 style="font-size: 0.875rem; color: var(--text-secondary); margin-bottom: 0.5rem;">Discovered Assets
+                </h4>
+                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem;">
+                    <div>
+                        <div style="font-size: 1.5rem; font-weight: 700; color: var(--accent-cyan);"
+                            id="hostsDiscovered">0</div>
+                        <div style="font-size: 0.75rem; color: var(--text-secondary);">Hosts Found</div>
+                    </div>
+                    <div>
+                        <div style="font-size: 1.5rem; font-weight: 700; color: var(--accent-cyan);"
+                            id="portsDiscovered">0</div>
+                        <div style="font-size: 0.75rem; color: var(--text-secondary);">Open Ports</div>
+                    </div>
+                </div>
+            </div>
+
             <!-- Live Output Log (Optional) -->
             <div>
                 <h4 style="font-size: 0.875rem; color: var(--text-secondary); margin-bottom: 0.5rem;">Live Output Log
@@ -472,6 +531,83 @@
                     </div>
                 </div>
             </div>
+        </div>
+    </div>
+
+    <!-- New Schedule Modal -->
+    <div id="newScheduleModal" class="hidden"
+        style="position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.8); z-index: 2000; display: flex; align-items: center; justify-content: center;">
+        <div class="card" style="max-width: 700px; width: 90%; max-height: 90vh; overflow-y: auto;">
+            <div class="card-header">
+                <h3 class="card-title">Create Scan Schedule</h3>
+                <button onclick="hideNewScheduleModal()"
+                    style="background: none; border: none; color: var(--text-secondary); cursor: pointer; font-size: 1.5rem;">&times;</button>
+            </div>
+            <form id="newScheduleForm">
+                <div class="form-group">
+                    <label class="form-label">Schedule Name</label>
+                    <input type="text" class="form-input" name="name" placeholder="e.g., Daily Security Scan" required>
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Description</label>
+                    <input type="text" class="form-input" name="description" placeholder="Optional description">
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Select Target</label>
+                    <select class="form-select" name="target_id" id="scheduleTargetSelect" required>
+                        <option value="">Choose a target...</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Scan Type</label>
+                    <div class="radio-group">
+                        <label class="radio-item">
+                            <input type="radio" name="scan_type" value="nmap" checked
+                                onchange="toggleScheduleOpenVASConfig()">
+                            <span>Nmap</span>
+                        </label>
+                        <label class="radio-item">
+                            <input type="radio" name="scan_type" value="openvas"
+                                onchange="toggleScheduleOpenVASConfig()">
+                            <span>OpenVAS</span>
+                        </label>
+                    </div>
+                </div>
+                <div class="form-group" id="scheduleNmapArgsGroup">
+                    <label class="form-label">Nmap Arguments</label>
+                    <input type="text" class="form-input" name="scanner_args" placeholder="-sV -T4" value="-F">
+                </div>
+                <div class="form-group" id="scheduleOpenvasConfigGroup" style="display: none;">
+                    <label class="form-label">OpenVAS Configuration</label>
+                    <select class="form-select" name="openvas_config_id" id="scheduleOpenvasConfigSelect">
+                        <option value="">Default configuration</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Schedule (Cron Expression)</label>
+                    <div style="margin-bottom: 0.5rem;">
+                        <select class="form-select" id="cronPresets" onchange="applyCronPreset()">
+                            <option value="">-- Quick Presets --</option>
+                            <option value="0 2 * * *">Daily at 2:00 AM</option>
+                            <option value="0 9 * * 1">Every Monday at 9:00 AM</option>
+                            <option value="0 0 * * 0">Every Sunday at midnight</option>
+                            <option value="*/30 * * * *">Every 30 minutes</option>
+                            <option value="0 */6 * * *">Every 6 hours</option>
+                            <option value="0 0 1 * *">First day of month at midnight</option>
+                        </select>
+                    </div>
+                    <input type="text" class="form-input" name="cron_expression" id="cronExpression"
+                        placeholder="0 2 * * *" required>
+                    <small style="color: var(--text-secondary); display: block; margin-top: 0.5rem;">
+                        Format: minute hour day month weekday (e.g., "0 2 * * *" = daily at 2 AM)
+                    </small>
+                    <div id="cronValidation" style="margin-top: 0.5rem; font-size: 0.875rem;"></div>
+                </div>
+                <div class="flex gap-4">
+                    <button type="button" class="btn btn-secondary" onclick="hideNewScheduleModal()">Cancel</button>
+                    <button type="submit" class="btn btn-primary">Create Schedule</button>
+                </div>
+            </form>
         </div>
     </div>
 

@@ -61,6 +61,26 @@ document.addEventListener('DOMContentLoaded', () => {
     const initialSectionId = 'dashboard'; // Or whatever your default section is
     showSection(initialSectionId);
 
+    // Tab switching for target management
+    const tabs = document.querySelectorAll('.tab');
+    tabs.forEach(tab => {
+        tab.addEventListener('click', () => {
+            // Remove active class from all tabs
+            tabs.forEach(t => t.classList.remove('active'));
+            // Add active class to clicked tab
+            tab.classList.add('active');
+
+            const tabType = tab.dataset.tab;
+            // For now, just show a message for range/cidr and hostname tabs
+            // These would need backend support for full implementation
+            if (tabType === 'range' || tabType === 'hostname') {
+                alert(`${tabType.toUpperCase()} target addition coming soon! For now, please use Single Target.`);
+                // Switch back to single tab
+                document.querySelector('.tab[data-tab="single"]').classList.add('active');
+                tab.classList.remove('active');
+            }
+        });
+    });
 
     // Modal handling
     window.showNewScanModal = () => {
@@ -94,17 +114,26 @@ document.addEventListener('DOMContentLoaded', () => {
         const targetId = formData.get('target_id');
         const scanType = formData.get('scan_type');
 
-        const args = scanType === 'nmap_full' ? '-sV -T4' : '-F';
+        const requestData = {
+            target_id: parseInt(targetId)
+        };
+
+        if (scanType === 'openvas') {
+            requestData.scan_type = 'openvas';
+            const configId = formData.get('openvas_config_id');
+            if (configId) {
+                requestData.openvas_config_id = configId;
+            }
+        } else {
+            requestData.scan_type = 'nmap';
+            requestData.args = scanType === 'nmap_full' ? '-sV -T4' : '-F';
+        }
 
         try {
             const response = await fetch('/api/scans/', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                    target_id: parseInt(targetId),
-                    scan_type: 'nmap',
-                    args: args
-                })
+                body: JSON.stringify(requestData)
             });
 
             if (response.ok) {
@@ -640,6 +669,342 @@ document.addEventListener('DOMContentLoaded', () => {
         };
         return badges[priority] || `<span class="badge">${priority}</span>`;
     }
+
+    // ========== OpenVAS Configuration ==========
+    let openvasConfigs = [];
+
+    async function loadOpenVASConfigs() {
+        try {
+            const response = await fetch('/api/openvas/configs');
+            const data = await response.json();
+            if (data.success) {
+                openvasConfigs = data.configs;
+                populateOpenVASConfigDropdowns();
+            }
+        } catch (error) {
+            console.error('Error loading OpenVAS configs:', error);
+        }
+    }
+
+    function populateOpenVASConfigDropdowns() {
+        const selects = [
+            document.getElementById('openvasConfigSelect'),
+            document.getElementById('scheduleOpenvasConfigSelect')
+        ];
+
+        selects.forEach(select => {
+            if (select) {
+                select.innerHTML = '<option value="">Default configuration</option>';
+                openvasConfigs.forEach(config => {
+                    const option = document.createElement('option');
+                    option.value = config.id;
+                    option.textContent = config.name;
+                    select.appendChild(option);
+                });
+            }
+        });
+    }
+
+    window.toggleOpenVASConfig = () => {
+        const scanType = document.querySelector('input[name="scan_type"]:checked').value;
+        const configGroup = document.getElementById('openvasConfigGroup');
+        if (scanType === 'openvas') {
+            configGroup.style.display = 'block';
+            if (openvasConfigs.length === 0) {
+                loadOpenVASConfigs();
+            }
+        } else {
+            configGroup.style.display = 'none';
+        }
+    };
+
+    window.toggleScheduleOpenVASConfig = () => {
+        const scanType = document.querySelector('#newScheduleForm input[name="scan_type"]:checked').value;
+        const nmapGroup = document.getElementById('scheduleNmapArgsGroup');
+        const openvasGroup = document.getElementById('scheduleOpenvasConfigGroup');
+
+        if (scanType === 'openvas') {
+            nmapGroup.style.display = 'none';
+            openvasGroup.style.display = 'block';
+            if (openvasConfigs.length === 0) {
+                loadOpenVASConfigs();
+            }
+        } else {
+            nmapGroup.style.display = 'block';
+            openvasGroup.style.display = 'none';
+        }
+    };
+
+    // ========== Schedules Management ==========
+    window.showNewScheduleModal = () => {
+        document.getElementById('newScheduleModal').classList.remove('hidden');
+        populateScheduleTargets();
+        if (openvasConfigs.length === 0) {
+            loadOpenVASConfigs();
+        }
+    };
+
+    window.hideNewScheduleModal = () => {
+        document.getElementById('newScheduleModal').classList.add('hidden');
+    };
+
+    function populateScheduleTargets() {
+        fetch('/api/targets/')
+            .then(res => res.json())
+            .then(targets => {
+                const select = document.getElementById('scheduleTargetSelect');
+                select.innerHTML = '<option value="">Choose a target...</option>';
+                targets.forEach(target => {
+                    const option = document.createElement('option');
+                    option.value = target.id;
+                    option.textContent = `${target.name} (${target.ip_address})`;
+                    select.appendChild(option);
+                });
+            });
+    }
+
+    window.applyCronPreset = () => {
+        const preset = document.getElementById('cronPresets').value;
+        if (preset) {
+            document.getElementById('cronExpression').value = preset;
+            validateCronExpression();
+        }
+    };
+
+    async function validateCronExpression() {
+        const cronExpr = document.getElementById('cronExpression').value;
+        const validationDiv = document.getElementById('cronValidation');
+
+        if (!cronExpr) {
+            validationDiv.innerHTML = '';
+            return;
+        }
+
+        try {
+            const response = await fetch('/api/schedules/validate-cron', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ cron_expression: cronExpr })
+            });
+            const data = await response.json();
+
+            if (data.valid) {
+                validationDiv.innerHTML = `<span style="color: var(--success-green);">✓ Valid - Next run: ${data.next_run_human}</span>`;
+            } else {
+                validationDiv.innerHTML = `<span style="color: var(--error-red);">✗ Invalid cron expression</span>`;
+            }
+        } catch (error) {
+            console.error('Error validating cron:', error);
+        }
+    }
+
+    // Validate cron on input
+    const cronInput = document.getElementById('cronExpression');
+    if (cronInput) {
+        cronInput.addEventListener('input', debounce(validateCronExpression, 500));
+    }
+
+    function debounce(func, wait) {
+        let timeout;
+        return function executedFunction(...args) {
+            const later = () => {
+                clearTimeout(timeout);
+                func(...args);
+            };
+            clearTimeout(timeout);
+            timeout = setTimeout(later, wait);
+        };
+    }
+
+    // New Schedule Form
+    const newScheduleForm = document.getElementById('newScheduleForm');
+    if (newScheduleForm) {
+        newScheduleForm.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const formData = new FormData(e.target);
+
+            const data = {
+                name: formData.get('name'),
+                description: formData.get('description'),
+                target_id: parseInt(formData.get('target_id')),
+                scan_type: formData.get('scan_type'),
+                cron_expression: formData.get('cron_expression'),
+                enabled: true
+            };
+
+            if (data.scan_type === 'nmap') {
+                data.scanner_args = formData.get('scanner_args');
+            } else if (data.scan_type === 'openvas') {
+                const configId = formData.get('openvas_config_id');
+                if (configId) {
+                    data.openvas_config_id = configId;
+                }
+            }
+
+            try {
+                const response = await fetch('/api/schedules/', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(data)
+                });
+
+                if (response.ok) {
+                    hideNewScheduleModal();
+                    fetchSchedules();
+                    alert('Schedule created successfully!');
+                } else {
+                    const error = await response.json();
+                    alert(`Failed to create schedule: ${error.error || 'Unknown error'}`);
+                }
+            } catch (error) {
+                console.error('Error creating schedule:', error);
+                alert('Failed to create schedule');
+            }
+        });
+    }
+
+    async function fetchSchedules() {
+        try {
+            const response = await fetch('/api/schedules/');
+            const schedules = await response.json();
+            renderSchedules(schedules);
+        } catch (error) {
+            console.error('Error fetching schedules:', error);
+        }
+    }
+
+    function renderSchedules(schedules) {
+        const scheduleList = document.getElementById('scheduleList');
+        if (!scheduleList) return;
+
+        if (schedules.length === 0) {
+            scheduleList.innerHTML = '<tr><td colspan="7" style="text-align: center; color: var(--text-secondary);">No schedules yet</td></tr>';
+            return;
+        }
+
+        scheduleList.innerHTML = schedules.map(schedule => `
+            <tr>
+                <td>${schedule.name}</td>
+                <td>${schedule.target_name || 'Unknown'}</td>
+                <td><span class="badge badge-info">${schedule.scan_type}</span></td>
+                <td><code style="font-size: 0.875rem;">${schedule.cron_expression}</code></td>
+                <td>${schedule.next_run ? new Date(schedule.next_run).toLocaleString() : '-'}</td>
+                <td>
+                    <span class="badge badge-${schedule.enabled ? 'success' : 'secondary'}">
+                        ${schedule.enabled ? 'Enabled' : 'Disabled'}
+                    </span>
+                </td>
+                <td>
+                    <button onclick="toggleSchedule(${schedule.id})" class="btn btn-secondary" style="padding: 0.5rem 1rem; margin-right: 0.5rem;">
+                        <i class="fas fa-${schedule.enabled ? 'pause' : 'play'}"></i>
+                    </button>
+                    <button onclick="deleteSchedule(${schedule.id})" class="btn btn-danger" style="padding: 0.5rem 1rem;">
+                        <i class="fas fa-trash"></i>
+                    </button>
+                </td>
+            </tr>
+        `).join('');
+    }
+
+    window.toggleSchedule = async (scheduleId) => {
+        try {
+            const response = await fetch(`/api/schedules/${scheduleId}/toggle`, {
+                method: 'POST'
+            });
+
+            if (response.ok) {
+                fetchSchedules();
+            } else {
+                alert('Failed to toggle schedule');
+            }
+        } catch (error) {
+            console.error('Error toggling schedule:', error);
+        }
+    };
+
+    window.deleteSchedule = async (scheduleId) => {
+        if (!confirm('Are you sure you want to delete this schedule?')) return;
+
+        try {
+            const response = await fetch(`/api/schedules/${scheduleId}`, {
+                method: 'DELETE'
+            });
+
+            if (response.ok) {
+                fetchSchedules();
+                alert('Schedule deleted successfully!');
+            } else {
+                alert('Failed to delete schedule');
+            }
+        } catch (error) {
+            console.error('Error deleting schedule:', error);
+        }
+    };
+
+    // ========== Enhanced WebSocket for Real-time Nmap ==========
+    let hostsDiscoveredCount = 0;
+    let portsDiscoveredCount = 0;
+
+    // Initialize WebSocket connection
+    function initWebSocket() {
+        if (!socket) {
+            socket = io('/scan-progress', {
+                transports: ['websocket', 'polling']
+            });
+
+            socket.on('connected', (data) => {
+                console.log('WebSocket connected:', data);
+            });
+
+            socket.on('progress_update', (data) => {
+                if (data.id === currentScanId) {
+                    updateProgressUI(data);
+                }
+            });
+
+            // Real-time Nmap events
+            socket.on('nmap_host_discovered', (data) => {
+                if (data.scan_id === currentScanId) {
+                    hostsDiscoveredCount = data.total_hosts;
+                    document.getElementById('hostsDiscovered').textContent = data.total_hosts;
+                    addLogEntry(`Host discovered: ${data.host}`, 'INFO');
+                }
+            });
+
+            socket.on('nmap_port_discovered', (data) => {
+                if (data.scan_id === currentScanId) {
+                    portsDiscoveredCount = data.total_open_ports;
+                    document.getElementById('portsDiscovered').textContent = data.total_open_ports;
+                    addLogEntry(`Port ${data.port.port}/${data.port.protocol} (${data.port.service}) discovered`, 'INFO');
+                }
+            });
+
+            socket.on('disconnect', () => {
+                console.log('WebSocket disconnected');
+            });
+        }
+    }
+
+    // Update showLiveScan to reset counters
+    const originalShowLiveScan = window.showLiveScan;
+    window.showLiveScan = (scanId, targetName) => {
+        hostsDiscoveredCount = 0;
+        portsDiscoveredCount = 0;
+        document.getElementById('hostsDiscovered').textContent = '0';
+        document.getElementById('portsDiscovered').textContent = '0';
+        if (originalShowLiveScan) {
+            originalShowLiveScan(scanId, targetName);
+        }
+    };
+
+    // Update section navigation to load schedules
+    const originalShowSection = showSection;
+    showSection = (sectionId, clickedNavItem = null) => {
+        originalShowSection(sectionId, clickedNavItem);
+        if (sectionId === 'schedules') {
+            fetchSchedules();
+        }
+    };
 
     // Initial data fetch
     fetchTargets();
