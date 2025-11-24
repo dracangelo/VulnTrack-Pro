@@ -1,0 +1,351 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>VulnTrack Pro - Automated Vulnerability Management</title>
+    <link rel="stylesheet" href="/static/styles.css">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+</head>
+
+<body>
+    <!-- Sidebar Navigation -->
+    <aside class="sidebar">
+        <div class="sidebar-logo">
+            <h1>VulnTrack Pro</h1>
+            <p>Automated Scanning</p>
+        </div>
+        <nav class="sidebar-nav">
+            <a href="#" class="nav-item active" data-section="dashboard">
+                <i class="fas fa-chart-line"></i>
+                Dashboard
+            </a>
+            <a href="#" class="nav-item" data-section="scans">
+                <i class="fas fa-radar"></i>
+                Scans
+            </a>
+            <a href="#" class="nav-item" data-section="targets">
+                <i class="fas fa-bullseye"></i>
+                Target Management
+            </a>
+            <a href="#" class="nav-item" data-section="vulnerabilities">
+                <i class="fas fa-bug"></i>
+                Vulnerabilities
+            </a>
+            <a href="#" class="nav-item" data-section="reports">
+                <i class="fas fa-file-alt"></i>
+                Reports
+            </a>
+            <a href="#" class="nav-item" data-section="tickets">
+                <i class="fas fa-ticket-alt"></i>
+                Tickets
+            </a>
+            <a href="#" class="nav-item" data-section="settings">
+                <i class="fas fa-cog"></i>
+                Settings
+            </a>
+        </nav>
+        <div style="position: absolute; bottom: 2rem; left: 1.5rem; right: 1.5rem;">
+            <button class="btn btn-primary" style="width: 100%;" onclick="showNewScanModal()">
+                <i class="fas fa-plus"></i> New Scan
+            </button>
+        </div>
+    </aside>
+
+    <!-- Main Content -->
+    <main class="main-content">
+        <!-- Dashboard Section -->
+        <section id="dashboard-section" class="content-section">
+            <div class="page-header">
+                <div class="breadcrumb">Home / Dashboard</div>
+                <h1 class="page-title">Dashboard</h1>
+            </div>
+
+            <div class="grid grid-2">
+                <div class="card">
+                    <div class="card-header">
+                        <h3 class="card-title">Vulnerabilities by Severity</h3>
+                    </div>
+                    <canvas id="severityChart"></canvas>
+                </div>
+
+                <div class="card">
+                    <div class="card-header">
+                        <h3 class="card-title">Top Vulnerable Hosts</h3>
+                    </div>
+                    <ul id="topHostsList" style="list-style: none; padding: 0;">
+                        <!-- Populated by JS -->
+                    </ul>
+                </div>
+            </div>
+
+            <div class="card">
+                <div class="card-header">
+                    <h3 class="card-title">Recent Activity</h3>
+                </div>
+                <div class="table-container">
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>Time</th>
+                                <th>Event</th>
+                                <th>Target</th>
+                                <th>Status</th>
+                            </tr>
+                        </thead>
+                        <tbody id="recentActivity">
+                            <!-- Populated by JS -->
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </section>
+
+        <!-- Scans Section -->
+        <section id="scans-section" class="content-section hidden">
+            <div class="page-header">
+                <div class="breadcrumb">Home / Scans</div>
+                <h1 class="page-title">Scan Management</h1>
+            </div>
+
+            <div class="card">
+                <div class="card-header">
+                    <h3 class="card-title">Recent Scans</h3>
+                    <button class="btn btn-primary" onclick="showNewScanModal()">
+                        <i class="fas fa-plus"></i> New Scan
+                    </button>
+                </div>
+                <div class="table-container">
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>ID</th>
+                                <th>Target</th>
+                                <th>Type</th>
+                                <th>Status</th>
+                                <th>Started</th>
+                                <th>Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody id="scanList">
+                            <!-- Populated by JS -->
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </section>
+
+        <!-- Targets Section -->
+        <section id="targets-section" class="content-section hidden">
+            <div class="page-header">
+                <div class="breadcrumb">Home / Target Management</div>
+                <h1 class="page-title">Target Management</h1>
+            </div>
+
+            <div class="grid grid-2">
+                <div class="card">
+                    <div class="card-header">
+                        <h3 class="card-title">Add New Targets</h3>
+                    </div>
+
+                    <div class="tabs">
+                        <button class="tab active" data-tab="single">Single Target</button>
+                        <button class="tab" data-tab="range">Range/CIDR</button>
+                        <button class="tab" data-tab="hostname">Hostname</button>
+                    </div>
+
+                    <form id="addTargetForm">
+                        <div class="form-group">
+                            <label class="form-label">IP Address</label>
+                            <input type="text" class="form-input" name="ip_address" placeholder="e.g., 192.168.1.1"
+                                required>
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label">Name (Optional)</label>
+                            <input type="text" class="form-input" name="name" placeholder="e.g., Production Server">
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label">Description</label>
+                            <input type="text" class="form-input" name="description" placeholder="Optional description">
+                        </div>
+                        <button type="submit" class="btn btn-primary">
+                            <i class="fas fa-plus-circle"></i> Add Target
+                        </button>
+                    </form>
+                </div>
+
+                <div class="card">
+                    <div class="card-header">
+                        <h3 class="card-title">Target Groups</h3>
+                    </div>
+                    <div id="targetGroups">
+                        <!-- Populated by JS -->
+                    </div>
+                </div>
+            </div>
+
+            <div class="card mt-4">
+                <div class="card-header">
+                    <h3 class="card-title">All Targets</h3>
+                </div>
+                <div class="table-container">
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>Name</th>
+                                <th>IP Address</th>
+                                <th>Description</th>
+                                <th>Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody id="targetList">
+                            <!-- Populated by JS -->
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </section>
+
+        <!-- Vulnerabilities Section -->
+        <section id="vulnerabilities-section" class="content-section hidden">
+            <div class="page-header">
+                <div class="breadcrumb">Home / Vulnerabilities</div>
+                <h1 class="page-title">Vulnerabilities</h1>
+            </div>
+
+            <div class="card">
+                <div class="card-header">
+                    <h3 class="card-title">Vulnerability Instances</h3>
+                </div>
+                <div class="table-container">
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>Vulnerability</th>
+                                <th>Severity</th>
+                                <th>Target</th>
+                                <th>Status</th>
+                                <th>Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody id="vulnList">
+                            <!-- Populated by JS -->
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </section>
+
+        <!-- Reports Section -->
+        <section id="reports-section" class="content-section hidden">
+            <div class="page-header">
+                <div class="breadcrumb">Home / Report Generation</div>
+                <h1 class="page-title">Report Generation</h1>
+            </div>
+
+            <div class="card">
+                <div class="card-header">
+                    <h3 class="card-title">Generate Report</h3>
+                </div>
+                <div class="tabs">
+                    <button class="tab active">Executive PDF</button>
+                    <button class="tab">Technical Export</button>
+                </div>
+                <p style="color: var(--text-secondary); margin-top: 1rem;">
+                    Select a completed scan from the Scans section to generate reports.
+                </p>
+            </div>
+        </section>
+
+        <!-- Tickets Section -->
+        <section id="tickets-section" class="content-section hidden">
+            <div class="page-header">
+                <div class="breadcrumb">Home / Tickets</div>
+                <h1 class="page-title">Remediation Tickets</h1>
+            </div>
+
+            <div class="card">
+                <div class="card-header">
+                    <h3 class="card-title">Active Tickets</h3>
+                    <button class="btn btn-primary" onclick="showNewTicketModal()">
+                        <i class="fas fa-plus"></i> New Ticket
+                    </button>
+                </div>
+                <div class="table-container">
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>ID</th>
+                                <th>Title</th>
+                                <th>Status</th>
+                                <th>Priority</th>
+                                <th>Vulnerabilities</th>
+                            </tr>
+                        </thead>
+                        <tbody id="ticketList">
+                            <!-- Populated by JS -->
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </section>
+
+        <!-- Settings Section -->
+        <section id="settings-section" class="content-section hidden">
+            <div class="page-header">
+                <div class="breadcrumb">Home / Settings</div>
+                <h1 class="page-title">Settings</h1>
+            </div>
+
+            <div class="card">
+                <div class="card-header">
+                    <h3 class="card-title">Application Settings</h3>
+                </div>
+                <p style="color: var(--text-secondary);">Settings configuration coming soon...</p>
+            </div>
+        </section>
+    </main>
+
+    <!-- New Scan Modal (Simple overlay for now) -->
+    <div id="newScanModal" class="hidden"
+        style="position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.8); z-index: 2000; display: flex; align-items: center; justify-content: center;">
+        <div class="card" style="max-width: 600px; width: 90%;">
+            <div class="card-header">
+                <h3 class="card-title">Configure & Schedule Scan</h3>
+                <button onclick="hideNewScanModal()"
+                    style="background: none; border: none; color: var(--text-secondary); cursor: pointer; font-size: 1.5rem;">&times;</button>
+            </div>
+            <form id="newScanForm">
+                <div class="form-group">
+                    <label class="form-label">Select Target</label>
+                    <select class="form-select" name="target_id" id="scanTargetSelect" required>
+                        <option value="">Choose a target...</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Scan Type</label>
+                    <div class="radio-group">
+                        <label class="radio-item">
+                            <input type="radio" name="scan_type" value="nmap_quick" checked>
+                            <span>Nmap Quick</span>
+                        </label>
+                        <label class="radio-item">
+                            <input type="radio" name="scan_type" value="nmap_full">
+                            <span>Nmap Full</span>
+                        </label>
+                    </div>
+                </div>
+                <div class="flex gap-4">
+                    <button type="button" class="btn btn-secondary" onclick="hideNewScanModal()">Cancel</button>
+                    <button type="submit" class="btn btn-primary">Initiate Scan</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <script src="/static/app.js"></script>
+</body>
+
+</html>

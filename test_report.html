@@ -1,0 +1,98 @@
+
+        <!DOCTYPE html>
+        <html>
+        <head>
+            <title>Scan Report #2</title>
+            <style>
+                body { font-family: Arial, sans-serif; margin: 40px; }
+                h1 { color: #333; }
+                .meta { margin-bottom: 20px; color: #666; }
+                table { width: 100%; border-collapse: collapse; margin-top: 20px; }
+                th, td { border: 1px solid #ddd; padding: 8px; text-align: left; }
+                th { background-color: #f2f2f2; }
+                .severity-Critical { color: red; font-weight: bold; }
+                .severity-High { color: orange; font-weight: bold; }
+                .severity-Medium { color: #d4d400; }
+                .severity-Low { color: green; }
+                .severity-Info { color: blue; }
+            </style>
+        </head>
+        <body>
+            <h1>Vulnerability Scan Report</h1>
+            <div class="meta">
+                <p><strong>Scan ID:</strong> 2</p>
+                <p><strong>Target:</strong> Scan Test Target (127.0.0.1)</p>
+                <p><strong>Date:</strong> 2025-11-24 08:46:28.214691</p>
+                <p><strong>Status:</strong> completed</p>
+            </div>
+            
+            <h2>Findings</h2>
+            <table>
+                <thead>
+                    <tr>
+                        <th>Vulnerability</th>
+                        <th>Severity</th>
+                        <th>Status</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    
+                    <tr>
+                        <td>
+                            <strong>Open Port 80/tcp (http)</strong><br>
+                            <small>Port 80 is open. Service: http Apache httpd 2.4.65</small>
+                        </td>
+                        <td class="severity-Info">Info</td>
+                        <td>open</td>
+                    </tr>
+                    
+                    <tr>
+                        <td>
+                            <strong>Open Port 111/tcp (rpcbind)</strong><br>
+                            <small>Port 111 is open. Service: rpcbind  2-4</small>
+                        </td>
+                        <td class="severity-Info">Info</td>
+                        <td>open</td>
+                    </tr>
+                    
+                    <tr>
+                        <td>
+                            <strong>Open Port 3306/tcp (mysql)</strong><br>
+                            <small>Port 3306 is open. Service: mysql  </small>
+                        </td>
+                        <td class="severity-Info">Info</td>
+                        <td>open</td>
+                    </tr>
+                    
+                    <tr>
+                        <td>
+                            <strong>Open Port 5000/tcp (http)</strong><br>
+                            <small>Port 5000 is open. Service: http Werkzeug httpd 3.1.3</small>
+                        </td>
+                        <td class="severity-Info">Info</td>
+                        <td>open</td>
+                    </tr>
+                    
+                    <tr>
+                        <td>
+                            <strong>Open Port 7070/tcp (realserver)</strong><br>
+                            <small>Port 7070 is open. Service: realserver  </small>
+                        </td>
+                        <td class="severity-Info">Info</td>
+                        <td>open</td>
+                    </tr>
+                    
+                    <tr>
+                        <td>
+                            <strong>Open Port 8000/tcp (http)</strong><br>
+                            <small>Port 8000 is open. Service: http Uvicorn </small>
+                        </td>
+                        <td class="severity-Info">Info</td>
+                        <td>open</td>
+                    </tr>
+                    
+                </tbody>
+            </table>
+        </body>
+        </html>
+        
