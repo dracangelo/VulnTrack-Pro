@@ -108,33 +108,67 @@
             <div class="page-header">
                 <div class="breadcrumb">Home / Scans</div>
                 <h1 class="page-title">Scan Management</h1>
-            </div>
+                <!-- Scans Section -->
+                <div id="scansSection" class="hidden">
+                    <div class="card-header">
+                        <h2 class="card-title">SCAN MANAGEMENT</h2>
+                        <button class="btn btn-primary" onclick="showNewScanModal()">
+                            <i class="fas fa-plus-circle"></i> New Scan
+                        </button>
+                    </div>
 
-            <div class="card">
-                <div class="card-header">
-                    <h3 class="card-title">Recent Scans</h3>
-                    <button class="btn btn-primary" onclick="showNewScanModal()">
-                        <i class="fas fa-plus"></i> New Scan
-                    </button>
+                    <!-- Active Scans -->
+                    <div class="card" style="margin-bottom: 1.5rem;">
+                        <div class="card-header">
+                            <h3 class="card-title" style="font-size: 1.125rem;">Active Scans (<span
+                                    id="activeScanCount">0</span>/<span id="maxConcurrent">3</span>)</h3>
+                            <button class="btn btn-secondary" onclick="refreshQueueStatus()"
+                                style="padding: 0.5rem 1rem;">
+                                <i class="fas fa-sync-alt"></i> Refresh
+                            </button>
+                        </div>
+                        <div id="activeScansContainer">
+                            <p style="color: var(--text-secondary); padding: 1rem;">No active scans</p>
+                        </div>
+                    </div>
+
+                    <!-- Queued Scans -->
+                    <div class="card" style="margin-bottom: 1.5rem;">
+                        <div class="card-header">
+                            <h3 class="card-title" style="font-size: 1.125rem;">Queued Scans (<span
+                                    id="queueSize">0</span>)</h3>
+                        </div>
+                        <div id="queuedScansContainer">
+                            <p style="color: var(--text-secondary); padding: 1rem;">No queued scans</p>
+                        </div>
+                    </div>
+
+                    <!-- All Scans -->
+                    <div class="card">
+                        <div class="card-header">
+                            <h3 class="card-title" style="font-size: 1.125rem;">All Scans</h3>
+                        </div>
+                        <table class="data-table">
+                            <thead>
+                                <tr>
+                                    <th>ID</th>
+                                    <th>Target</th>
+                                    <th>Type</th>
+                                    <th>Status</th>
+                                    <th>Progress</th>
+                                    <th>Started</th>
+                                    <th>Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody id="scansList">
+                                <tr>
+                                    <td colspan="7" style="text-align: center; color: var(--text-secondary);">No scans
+                                        yet</td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
                 </div>
-                <div class="table-container">
-                    <table>
-                        <thead>
-                            <tr>
-                                <th>ID</th>
-                                <th>Target</th>
-                                <th>Type</th>
-                                <th>Status</th>
-                                <th>Started</th>
-                                <th>Actions</th>
-                            </tr>
-                        </thead>
-                        <tbody id="scanList">
-                            <!-- Populated by JS -->
-                        </tbody>
-                    </table>
-                </div>
-            </div>
         </section>
 
         <!-- Targets Section -->
@@ -345,6 +379,103 @@
         </div>
     </div>
 
+    <!-- Live Scan Progress Modal -->
+    <div id="liveScanModal" class="hidden"
+        style="position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.9); z-index: 2000; display: flex; align-items: center; justify-content: center;">
+        <div class="card" style="max-width: 800px; width: 90%;">
+            <div class="card-header">
+                <div>
+                    <h3 class="card-title" style="color: var(--accent-cyan);">LIVE SCAN IN PROGRESS</h3>
+                    <p id="liveScanTarget"
+                        style="color: var(--text-secondary); font-size: 0.875rem; margin-top: 0.5rem;"></p>
+                </div>
+                <style>
+                    .badge-completed {
+                        background: var(--success-green);
+                    }
+
+                    .badge-failed {
+                        background: var(--error-red);
+                    }
+
+                    .badge-cancelled {
+                        background: var(--text-secondary);
+                    }
+
+                    .badge-queued {
+                        background: var(--accent-purple);
+                    }
+                </style>
+                <button onclick="closeLiveScan()"
+                    style="background: none; border: none; color: var(--text-secondary); cursor: pointer; font-size: 1.5rem;">&times;</button>
+            </div>
+
+            <!-- Progress Bar -->
+            <div style="margin-bottom: 1.5rem;">
+                <div class="flex-between" style="margin-bottom: 0.5rem;">
+                    <span style="font-size: 2rem; font-weight: 700; color: var(--accent-cyan);"
+                        id="progressPercentage">0%</span>
+                    <button class="btn btn-danger" onclick="cancelScan()" style="padding: 0.5rem 1rem;">
+                        <i class="fas fa-times-circle"></i> Cancel Scan
+                    </button>
+                </div>
+                <div class="progress-bar" style="height: 12px;">
+                    <div class="progress-fill" id="progressFill" style="width: 0%;"></div>
+                </div>
+                <div class="flex-between"
+                    style="margin-top: 0.5rem; font-size: 0.875rem; color: var(--text-secondary);">
+                    <span>ETA: <span id="etaDisplay">Calculating...</span></span>
+                    <span>Elapsed: <span id="elapsedDisplay">0s</span></span>
+                </div>
+            </div>
+
+            <!-- Current Step -->
+            <div style="margin-bottom: 1.5rem;">
+                <h4 style="font-size: 0.875rem; color: var(--text-secondary); margin-bottom: 0.5rem;">Current Step</h4>
+                <p id="currentStep" style="color: var(--text-primary); font-size: 1rem;">Initializing...</p>
+            </div>
+
+            <!-- Vulnerability Count -->
+            <div style="margin-bottom: 1.5rem;">
+                <h4 style="font-size: 0.875rem; color: var(--text-secondary); margin-bottom: 0.5rem;">Vulnerabilities
+                    Found</h4>
+                <div style="display: flex; gap: 1rem; flex-wrap: wrap;">
+                    <div style="flex: 1; min-width: 120px;">
+                        <div style="font-size: 2rem; font-weight: 700; color: var(--accent-cyan);" id="vulnTotal">0
+                        </div>
+                        <div style="font-size: 0.75rem; color: var(--text-secondary);">Total</div>
+                    </div>
+                    <div style="flex: 1; min-width: 120px;">
+                        <div style="font-size: 1.25rem; font-weight: 600; color: #EF4444;" id="vulnCritical">0</div>
+                        <div style="font-size: 0.75rem; color: var(--text-secondary);">Critical</div>
+                    </div>
+                    <div style="flex: 1; min-width: 120px;">
+                        <div style="font-size: 1.25rem; font-weight: 600; color: #F59E0B;" id="vulnHigh">0</div>
+                        <div style="font-size: 0.75rem; color: var(--text-secondary);">High</div>
+                    </div>
+                    <div style="flex: 1; min-width: 120px;">
+                        <div style="font-size: 1.25rem; font-weight: 600; color: #EAB308;" id="vulnMedium">0</div>
+                        <div style="font-size: 0.75rem; color: var(--text-secondary);">Medium</div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Live Output Log (Optional) -->
+            <div>
+                <h4 style="font-size: 0.875rem; color: var(--text-secondary); margin-bottom: 0.5rem;">Live Output Log
+                </h4>
+                <div class="log-output" id="liveLog">
+                    <div class="log-line">
+                        <span class="log-timestamp">[00:00:00]</span>
+                        <span class="log-level-INFO">[INFO]</span>
+                        <span>Scan initialized...</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdn.socket.io/4.5.4/socket.io.min.js"></script>
     <script src="/static/app.js"></script>
 </body>
 

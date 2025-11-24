@@ -46,3 +46,78 @@ def create_scan():
     scan_id = scan_manager.start_scan(data['target_id'], data['scan_type'], data.get('args'))
     
     return jsonify({'message': 'Scan started', 'scan_id': scan_id}), 201
+
+@scan_bp.route('/<int:scan_id>/progress', methods=['GET'])
+def get_scan_progress(scan_id):
+    scan = Scan.query.get_or_404(scan_id)
+    
+    # Calculate elapsed time
+    elapsed = 0
+    if scan.started_at:
+        from datetime import datetime
+        elapsed = int((datetime.utcnow() - scan.started_at).total_seconds())
+    
+    return jsonify({
+        'id': scan.id,
+        'status': scan.status,
+        'progress': scan.progress or 0,
+        'current_step': scan.current_step or 'Initializing...',
+        'eta_seconds': scan.eta_seconds,
+        'elapsed_seconds': elapsed,
+        'target_name': scan.target.name if scan.target else 'Unknown',
+        'vuln_count': scan.vuln_count or 0,
+        'vuln_breakdown': scan.vuln_breakdown or {}
+    })
+
+@scan_bp.route('/<int:scan_id>/cancel', methods=['DELETE'])
+def cancel_scan(scan_id):
+    scan = Scan.query.get_or_404(scan_id)
+    
+    # Only allow cancellation of running scans
+    if scan.status != 'running':
+        return jsonify({'error': 'Can only cancel running scans'}), 400
+    
+    from flask import current_app
+    from api.services.scan_manager import ScanManager
+    
+    scan_manager = ScanManager(current_app._get_current_object())
+    
+    if scan_manager.cancel_scan(scan_id):
+        return jsonify({'message': 'Scan cancellation requested'}), 200
+    else:
+        return jsonify({'error': 'Scan not found in active scans'}), 404
+
+@scan_bp.route('/queue/status', methods=['GET'])
+def get_queue_status():
+    """Get current queue status and active scans"""
+    from flask import current_app
+    from api.services.scan_manager import ScanManager
+    
+    scan_manager = ScanManager(current_app._get_current_object())
+    
+    # Get active scans
+    active_scan_ids = list(scan_manager.active_scans.keys())
+    active_scans = Scan.query.filter(Scan.id.in_(active_scan_ids)).all() if active_scan_ids else []
+    
+    # Get queued scans
+    queued_scans = Scan.query.filter_by(status='queued').order_by(Scan.queue_position).all()
+    
+    return jsonify({
+        'max_concurrent': scan_manager.scan_queue.max_concurrent,
+        'active_count': len(active_scan_ids),
+        'queue_size': scan_manager.scan_queue.get_queue_size(),
+        'active_scans': [{
+            'id': s.id,
+            'target_name': s.target.name if s.target else 'Unknown',
+            'scan_type': s.scan_type,
+            'progress': s.progress or 0,
+            'status': s.status
+        } for s in active_scans],
+        'queued_scans': [{
+            'id': s.id,
+            'target_name': s.target.name if s.target else 'Unknown',
+            'scan_type': s.scan_type,
+            'queue_position': s.queue_position,
+            'status': s.status
+        } for s in queued_scans]
+    })

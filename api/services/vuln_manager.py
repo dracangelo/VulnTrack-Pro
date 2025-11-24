@@ -25,10 +25,32 @@ class VulnManager:
         vulnerabilities = []
         if scan.scan_type == 'nmap':
             vulnerabilities = self.parser.parse_nmap_results(scan_data)
+        elif scan.scan_type == 'openvas':
+            # OpenVAS results are already parsed
+            vulnerabilities = scan_data.get('vulnerabilities', [])
         # Add other types here
+        
+        # Track vulnerability counts
+        vuln_breakdown = {
+            'Critical': 0,
+            'High': 0,
+            'Medium': 0,
+            'Low': 0,
+            'Info': 0
+        }
         
         for vuln_dict in vulnerabilities:
             self._create_or_update_vuln(vuln_dict, scan)
+            
+            # Update breakdown
+            severity = vuln_dict.get('severity', 'Info')
+            if severity in vuln_breakdown:
+                vuln_breakdown[severity] += 1
+        
+        # Update scan with vulnerability counts
+        scan.vuln_count = len(vulnerabilities)
+        scan.vuln_breakdown = vuln_breakdown
+        db.session.commit()
 
     def _create_or_update_vuln(self, vuln_dict, scan):
         # 1. Find or Create Vulnerability Definition
