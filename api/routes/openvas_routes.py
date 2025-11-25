@@ -1,6 +1,9 @@
 from flask import Blueprint, jsonify
 from api.services.openvas_scanner import OpenVASScanner
 import os
+import logging
+
+logger = logging.getLogger(__name__)
 
 openvas_bp = Blueprint('openvas', __name__, url_prefix='/api/openvas')
 
@@ -15,16 +18,15 @@ def get_configs():
             password=os.getenv('OPENVAS_PASSWORD', 'admin')
         )
         
+        logger.info("Fetching OpenVAS scan configurations...")
         configs = scanner.get_scan_configs()
+        logger.info(f"Found {len(configs)} configurations")
         
-        return jsonify({
-            'success': True,
-            'configs': configs
-        }), 200
+        return jsonify(configs), 200
         
     except Exception as e:
+        logger.error(f"Error fetching OpenVAS configs: {e}")
         return jsonify({
-            'success': False,
             'error': str(e)
         }), 500
 
@@ -39,21 +41,21 @@ def test_connection():
             password=os.getenv('OPENVAS_PASSWORD', 'admin')
         )
         
-        connected = scanner.connect()
+        success, message = scanner.test_connection()
         
-        if connected:
-            scanner.disconnect()
+        if success:
             return jsonify({
                 'success': True,
-                'message': 'Successfully connected to OpenVAS'
+                'message': message
             }), 200
         else:
             return jsonify({
                 'success': False,
-                'message': 'Failed to connect to OpenVAS'
+                'message': message
             }), 500
             
     except Exception as e:
+        logger.error(f"Error testing OpenVAS connection: {e}")
         return jsonify({
             'success': False,
             'error': str(e)
