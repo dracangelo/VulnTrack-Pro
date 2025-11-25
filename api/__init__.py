@@ -8,12 +8,12 @@ def create_app():
     app = Flask(__name__, static_folder='../web', static_url_path='/static')
     app.config.from_object(Config)
     
-    # Default Rate Limit
-    app.config['RATELIMIT_DEFAULT'] = "200 per day; 50 per hour"
-
     # Initialize extensions
     from api.extensions import db, migrate, limiter, socketio
     
+    # Initialize rate limiter (increased for development)
+    app.config['RATELIMIT_DEFAULT'] = '500 per hour'  # Increased from 50 to 500
+
     db.init_app(app)
     migrate.init_app(app, db)
     limiter.init_app(app)

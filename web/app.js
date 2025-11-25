@@ -1,4 +1,13 @@
 document.addEventListener('DOMContentLoaded', () => {
+    // Variable declarations - must be at top to avoid hoisting issues
+    let queueRefreshInterval = null;
+    let progressPollInterval = null;
+    let currentScanId = null;
+    let socket = null;
+    let hostsDiscoveredCount = 0;
+    let portsDiscoveredCount = 0;
+    let openvasConfigs = [];
+
     // Navigation handling
     const navItems = document.querySelectorAll('.nav-item');
     const sections = document.querySelectorAll('.content-section');
@@ -35,13 +44,14 @@ document.addEventListener('DOMContentLoaded', () => {
         }
 
         // Load data for the section
-        if (sectionId === 'dashboard') { // Changed from 'dashboardSection' to 'dashboard'
+        if (sectionId === 'dashboard') {
             // fetchStats(); // Assuming this function exists elsewhere
-        } else if (sectionId === 'targets') { // Changed from 'targetsSection' to 'targets'
+        } else if (sectionId === 'targets') {
             fetchTargets();
-        } else if (sectionId === 'scans') { // Changed from 'scansSection' to 'scans'
-            // fetchScans(); // Assuming this function exists elsewhere
-        } else if (sectionId === 'tickets') { // Changed from 'ticketsSection' to 'tickets'
+        } else if (sectionId === 'scans') {
+            fetchScans(); // Fetch scans when viewing scans section
+            refreshQueueStatus(); // Also refresh queue status
+        } else if (sectionId === 'tickets') {
             // fetchTickets(); // Assuming this function exists elsewhere
         } else if (sectionId === 'vulnerabilities') { // Changed from 'vulnerabilitiesSection' to 'vulnerabilities'
             // fetchVulnerabilities(); // Assuming this function exists elsewhere
@@ -187,7 +197,7 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     // Queue Status Management
-    async function refreshQueueStatus() {
+    window.refreshQueueStatus = async function refreshQueueStatus() {
         try {
             const response = await fetch('/api/scans/queue/status');
             const data = await response.json();
@@ -245,8 +255,6 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     // Auto-refresh queue status every 5 seconds when on scans page
-    let queueRefreshInterval = null;
-
     function startQueueRefresh() {
         refreshQueueStatus();
         queueRefreshInterval = setInterval(refreshQueueStatus, 5000);
@@ -260,10 +268,6 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     // Live Scan Progress Tracking with WebSockets
-    let progressPollInterval = null;
-    let currentScanId = null;
-    let socket = null;
-
     // Initialize WebSocket connection
     function initWebSocket() {
         if (!socket) {
@@ -494,7 +498,7 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     function renderScans(scans) {
-        const scanList = document.getElementById('scanList');
+        const scanList = document.getElementById('scansList'); // Changed from scanList to scansList
         if (!scanList) return;
 
         scanList.innerHTML = scans.map(scan => `
@@ -509,10 +513,15 @@ document.addEventListener('DOMContentLoaded', () => {
                 `<button onclick="downloadReport(${scan.id}, 'html')" class="btn btn-secondary" style="padding: 0.5rem 1rem; margin-right: 0.5rem;">
                             <i class="fas fa-file-code"></i> HTML
                         </button>
-                        <button onclick="downloadReport(${scan.id}, 'pdf')" class="btn btn-secondary" style="padding: 0.5rem 1rem;">
+                        <button onclick="downloadReport(${scan.id}, 'pdf')" class="btn btn-secondary" style="padding: 0.5rem 1rem; margin-right: 0.5rem;">
                             <i class="fas fa-file-pdf"></i> PDF
                         </button>`
                 : '<span style="color: var(--text-muted);">-</span>'}
+                    ${scan.status !== 'running' ?
+                `<button onclick="deleteScan(${scan.id})" class="btn btn-danger" style="padding: 0.5rem 1rem;">
+                            <i class="fas fa-trash"></i>
+                        </button>`
+                : ''}
                 </td>
             </tr>
         `).join('');
@@ -529,8 +538,6 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     window.startScan = async (targetId) => {
-        if (!confirm('Start Nmap scan for this target?')) return;
-
         try {
             const response = await fetch('/api/scans/', {
                 method: 'POST',
@@ -545,9 +552,11 @@ document.addEventListener('DOMContentLoaded', () => {
             if (response.ok) {
                 const result = await response.json();
 
-                // Get target name from the table
-                const targetRow = event.target.closest('tr');
-                const targetName = targetRow.querySelector('td:first-child').textContent;
+                // Get target name by fetching targets
+                const targetsResponse = await fetch('/api/targets/');
+                const targets = await targetsResponse.json();
+                const target = targets.find(t => t.id === targetId);
+                const targetName = target ? target.name : 'Unknown Target';
 
                 // Show live scan progress
                 showLiveScan(result.scan_id, targetName);
@@ -556,11 +565,35 @@ document.addEventListener('DOMContentLoaded', () => {
             }
         } catch (error) {
             console.error('Error starting scan:', error);
+            alert('Error starting scan: ' + error.message);
         }
     };
 
     window.downloadReport = (scanId, format) => {
         window.location.href = `/api/reports/${scanId}/download?format=${format}`;
+    };
+
+    window.deleteScan = async (scanId) => {
+        if (!confirm('Are you sure you want to delete this scan report? This action cannot be undone.')) {
+            return;
+        }
+
+        try {
+            const response = await fetch(`/api/scans/${scanId}`, {
+                method: 'DELETE'
+            });
+
+            if (response.ok) {
+                alert('Scan deleted successfully!');
+                fetchScans(); // Refresh the scan list
+            } else {
+                const error = await response.json();
+                alert('Failed to delete scan: ' + (error.error || 'Unknown error'));
+            }
+        } catch (error) {
+            console.error('Error deleting scan:', error);
+            alert('Error deleting scan: ' + error.message);
+        }
     };
 
     // Dashboard - Fetch stats
@@ -671,38 +704,50 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     // ========== OpenVAS Configuration ==========
-    let openvasConfigs = [];
-
     async function loadOpenVASConfigs() {
         try {
             const response = await fetch('/api/openvas/configs');
-            const data = await response.json();
-            if (data.success) {
-                openvasConfigs = data.configs;
-                populateOpenVASConfigDropdowns();
+            if (response.ok) {
+                openvasConfigs = await response.json();
+                const select = document.getElementById('openvasConfigSelect');
+                const scheduleSelect = document.getElementById('scheduleOpenvasConfigSelect');
+
+                if (select) {
+                    select.innerHTML = '<option value="">Choose a configuration...</option>';
+                    openvasConfigs.forEach(config => {
+                        const option = document.createElement('option');
+                        option.value = config.id;
+                        option.textContent = config.name;
+                        select.appendChild(option);
+                    });
+                }
+
+                if (scheduleSelect) {
+                    scheduleSelect.innerHTML = '<option value="">Choose a configuration...</option>';
+                    openvasConfigs.forEach(config => {
+                        const option = document.createElement('option');
+                        option.value = config.id;
+                        option.textContent = config.name;
+                        scheduleSelect.appendChild(option);
+                    });
+                }
+            } else {
+                // OpenVAS not configured - this is OK, just disable the option
+                console.log('OpenVAS not configured - only Nmap scanning available');
+                const openvasOption = document.querySelector('input[value="openvas"]');
+                if (openvasOption) {
+                    openvasOption.disabled = true;
+                    const label = openvasOption.closest('label');
+                    if (label) {
+                        label.style.opacity = '0.5';
+                        label.title = 'OpenVAS not configured. See OPENVAS_SETUP.md for installation instructions.';
+                    }
+                }
             }
         } catch (error) {
-            console.error('Error loading OpenVAS configs:', error);
+            console.log('OpenVAS not available:', error.message);
+            // Silently disable OpenVAS option - this is expected if OpenVAS isn't installed
         }
-    }
-
-    function populateOpenVASConfigDropdowns() {
-        const selects = [
-            document.getElementById('openvasConfigSelect'),
-            document.getElementById('scheduleOpenvasConfigSelect')
-        ];
-
-        selects.forEach(select => {
-            if (select) {
-                select.innerHTML = '<option value="">Default configuration</option>';
-                openvasConfigs.forEach(config => {
-                    const option = document.createElement('option');
-                    option.value = config.id;
-                    option.textContent = config.name;
-                    select.appendChild(option);
-                });
-            }
-        });
     }
 
     window.toggleOpenVASConfig = () => {
@@ -942,9 +987,6 @@ document.addEventListener('DOMContentLoaded', () => {
     };
 
     // ========== Enhanced WebSocket for Real-time Nmap ==========
-    let hostsDiscoveredCount = 0;
-    let portsDiscoveredCount = 0;
-
     // Initialize WebSocket connection
     function initWebSocket() {
         if (!socket) {

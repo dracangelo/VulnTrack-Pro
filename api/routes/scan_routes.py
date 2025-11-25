@@ -129,3 +129,20 @@ def get_queue_status():
             'status': s.status
         } for s in queued_scans]
     })
+
+@scan_bp.route('/<int:id>', methods=['DELETE'])
+def delete_scan(id):
+    """Delete a scan report"""
+    scan = Scan.query.get_or_404(id)
+    
+    # Prevent deletion of running scans
+    if scan.status == 'running':
+        return jsonify({'error': 'Cannot delete a running scan. Please cancel it first.'}), 400
+    
+    try:
+        db.session.delete(scan)
+        db.session.commit()
+        return jsonify({'message': 'Scan deleted successfully'}), 200
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({'error': str(e)}), 500
