@@ -663,6 +663,104 @@
         </div>
     </div>
 
+    <!-- Vulnerability Details Modal -->
+    <div id="vulnDetailsModal" class="hidden"
+        style="position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.9); z-index: 2000; display: flex; align-items: center; justify-content: center; overflow-y: auto;">
+        <div class="card" style="max-width: 900px; width: 90%; max-height: 90vh; overflow-y: auto; margin: 2rem;">
+            <div class="card-header">
+                <div>
+                    <h3 class="card-title" id="vulnDetailTitle" style="color: var(--accent-cyan);">Vulnerability Details
+                    </h3>
+                    <p id="vulnDetailCVE"
+                        style="color: var(--text-secondary); font-size: 0.875rem; margin-top: 0.5rem;"></p>
+                </div>
+                <button onclick="closeVulnDetails()"
+                    style="background: none; border: none; color: var(--text-secondary); cursor: pointer; font-size: 1.5rem;">&times;</button>
+            </div>
+
+            <!-- Severity and CVSS Score -->
+            <div
+                style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 1rem; margin-bottom: 1.5rem;">
+                <div style="background: var(--bg-secondary); padding: 1rem; border-radius: 0.5rem;">
+                    <div style="font-size: 0.75rem; color: var(--text-secondary); margin-bottom: 0.5rem;">SEVERITY</div>
+                    <div id="vulnDetailSeverity"></div>
+                </div>
+                <div style="background: var(--bg-secondary); padding: 1rem; border-radius: 0.5rem;">
+                    <div style="font-size: 0.75rem; color: var(--text-secondary); margin-bottom: 0.5rem;">CVSS SCORE
+                    </div>
+                    <div id="vulnDetailCVSS" style="font-size: 1.5rem; font-weight: 700; color: var(--accent-cyan);">
+                    </div>
+                </div>
+                <div style="background: var(--bg-secondary); padding: 1rem; border-radius: 0.5rem;">
+                    <div style="font-size: 0.75rem; color: var(--text-secondary); margin-bottom: 0.5rem;">STATUS</div>
+                    <div id="vulnDetailStatus"></div>
+                </div>
+                <div style="background: var(--bg-secondary); padding: 1rem; border-radius: 0.5rem;">
+                    <div style="font-size: 0.75rem; color: var(--text-secondary); margin-bottom: 0.5rem;">DETECTED</div>
+                    <div id="vulnDetailDetected" style="color: var(--text-primary);"></div>
+                </div>
+            </div>
+
+            <!-- Target and Port Info -->
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; margin-bottom: 1.5rem;">
+                <div>
+                    <h4 style="font-size: 0.875rem; color: var(--text-secondary); margin-bottom: 0.5rem;">TARGET</h4>
+                    <p id="vulnDetailTarget" style="color: var(--text-primary);"></p>
+                </div>
+                <div>
+                    <h4 style="font-size: 0.875rem; color: var(--text-secondary); margin-bottom: 0.5rem;">PORT / SERVICE
+                    </h4>
+                    <p id="vulnDetailPort" style="color: var(--text-primary);"></p>
+                </div>
+            </div>
+
+            <!-- Description -->
+            <div style="margin-bottom: 1.5rem;">
+                <h4 style="font-size: 0.875rem; color: var(--text-secondary); margin-bottom: 0.5rem;">DESCRIPTION</h4>
+                <p id="vulnDetailDescription" style="color: var(--text-primary); line-height: 1.6;"></p>
+            </div>
+
+            <!-- Evidence (if available) -->
+            <div id="vulnDetailEvidenceSection" style="margin-bottom: 1.5rem; display: none;">
+                <h4 style="font-size: 0.875rem; color: var(--text-secondary); margin-bottom: 0.5rem;">EVIDENCE</h4>
+                <div class="log-output" style="max-height: 200px;">
+                    <pre id="vulnDetailEvidence" style="margin: 0; white-space: pre-wrap; word-wrap: break-word;"></pre>
+                </div>
+            </div>
+
+            <!-- Remediation -->
+            <div id="vulnDetailRemediationSection" style="margin-bottom: 1.5rem; display: none;">
+                <h4 style="font-size: 0.875rem; color: var(--text-secondary); margin-bottom: 0.5rem;">REMEDIATION</h4>
+                <p id="vulnDetailRemediation" style="color: var(--text-primary); line-height: 1.6;"></p>
+            </div>
+
+            <!-- Status Update Section -->
+            <div style="border-top: 1px solid var(--border-color); padding-top: 1.5rem;">
+                <h4 style="font-size: 0.875rem; color: var(--text-secondary); margin-bottom: 1rem;">UPDATE STATUS</h4>
+                <form id="vulnStatusUpdateForm" onsubmit="updateVulnStatus(event)">
+                    <input type="hidden" id="vulnDetailInstanceId">
+                    <div class="form-group">
+                        <label class="form-label">New Status</label>
+                        <select class="form-select" id="vulnNewStatus" required onchange="toggleFalsePositiveReason()">
+                            <option value="open">Open</option>
+                            <option value="fixed">Fixed</option>
+                            <option value="false_positive">False Positive</option>
+                            <option value="accepted_risk">Accepted Risk</option>
+                        </select>
+                    </div>
+                    <div class="form-group" id="falsePositiveReasonGroup" style="display: none;">
+                        <label class="form-label">Reason (for False Positive)</label>
+                        <textarea class="form-textarea" id="vulnFalsePositiveReason" rows="3"></textarea>
+                    </div>
+                    <div class="flex gap-4">
+                        <button type="button" class="btn btn-secondary" onclick="closeVulnDetails()">Cancel</button>
+                        <button type="submit" class="btn btn-primary">Update Status</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
     <script src="https://cdn.socket.io/4.5.4/socket.io.min.js"></script>
     <script src="/static/vuln_management.js"></script>
     <script src="/static/app.js"></script>

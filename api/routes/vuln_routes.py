@@ -29,6 +29,23 @@ def get_vulns():
         'category': v.category
     } for v in vulns])
 
+@vuln_bp.route('/<int:vuln_id>', methods=['GET'])
+def get_vuln(vuln_id):
+    """Get a single vulnerability definition by ID"""
+    vuln = Vulnerability.query.get_or_404(vuln_id)
+    return jsonify({
+        'id': vuln.id,
+        'name': vuln.name,
+        'severity': vuln.severity,
+        'cvss_score': vuln.cvss_score,
+        'cvss_vector': vuln.cvss_vector,
+        'description': vuln.description,
+        'cve_id': vuln.cve_id,
+        'category': vuln.category,
+        'remediation': vuln.remediation,
+        'references': vuln.references
+    })
+
 @vuln_bp.route('/instances', methods=['GET'])
 def get_instances():
     """

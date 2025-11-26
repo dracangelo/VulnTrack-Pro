@@ -135,7 +135,126 @@ function getVulnStatusBadge(status) {
 }
 
 // Show vulnerability details (placeholder for future modal)
-window.showVulnDetails = function (vulnId) {
-    alert(`Vulnerability details modal for ID ${vulnId} - Coming soon!`);
-    // TODO: Implement vulnerability details modal
+window.showVulnDetails = async function (vulnId) {
+    try {
+        // Fetch full vulnerability details
+        const response = await fetch(`/api/vulns/instances?target_id=${currentVulnTargetId}`);
+        const vulnerabilities = await response.json();
+
+        // Find the specific vulnerability
+        const vuln = vulnerabilities.find(v => v.id === vulnId);
+
+        if (!vuln) {
+            alert('Vulnerability not found');
+            return;
+        }
+
+        // Fetch the full vulnerability definition for description and remediation
+        const vulnDefResponse = await fetch(`/api/vulns/${vuln.vulnerability_id}`);
+        const vulnDef = await vulnDefResponse.json();
+
+        // Populate modal
+        document.getElementById('vulnDetailTitle').textContent = vuln.vulnerability_name || 'Unknown Vulnerability';
+        document.getElementById('vulnDetailCVE').textContent = vulnDef.cve_id ? `CVE: ${vulnDef.cve_id}` : '';
+
+        // Severity and CVSS
+        document.getElementById('vulnDetailSeverity').innerHTML = getSeverityBadge(vuln.severity);
+        document.getElementById('vulnDetailCVSS').textContent = vuln.cvss_score ? vuln.cvss_score.toFixed(1) : 'N/A';
+        document.getElementById('vulnDetailStatus').innerHTML = getVulnStatusBadge(vuln.status);
+        document.getElementById('vulnDetailDetected').textContent = vuln.detected_at ?
+            new Date(vuln.detected_at).toLocaleString() : 'Unknown';
+
+        // Target and Port
+        document.getElementById('vulnDetailTarget').textContent = vuln.target_name || 'Unknown';
+        const portInfo = [];
+        if (vuln.port) portInfo.push(`Port ${vuln.port}`);
+        if (vuln.protocol) portInfo.push(vuln.protocol.toUpperCase());
+        if (vuln.service) portInfo.push(vuln.service);
+        document.getElementById('vulnDetailPort').textContent = portInfo.length > 0 ? portInfo.join(' / ') : 'N/A';
+
+        // Description
+        document.getElementById('vulnDetailDescription').textContent = vulnDef.description || 'No description available.';
+
+        // Evidence (if available)
+        if (vuln.evidence) {
+            document.getElementById('vulnDetailEvidenceSection').style.display = 'block';
+            document.getElementById('vulnDetailEvidence').textContent = vuln.evidence;
+        } else {
+            document.getElementById('vulnDetailEvidenceSection').style.display = 'none';
+        }
+
+        // Remediation (if available)
+        if (vulnDef.remediation) {
+            document.getElementById('vulnDetailRemediationSection').style.display = 'block';
+            document.getElementById('vulnDetailRemediation').textContent = vulnDef.remediation;
+        } else {
+            document.getElementById('vulnDetailRemediationSection').style.display = 'none';
+        }
+
+        // Set instance ID and current status for update form
+        document.getElementById('vulnDetailInstanceId').value = vuln.id;
+        document.getElementById('vulnNewStatus').value = vuln.status;
+
+        // Show modal
+        document.getElementById('vulnDetailsModal').classList.remove('hidden');
+
+    } catch (error) {
+        console.error('Error fetching vulnerability details:', error);
+        alert('Failed to load vulnerability details');
+    }
+};
+
+// Close vulnerability details modal
+window.closeVulnDetails = function () {
+    document.getElementById('vulnDetailsModal').classList.add('hidden');
+};
+
+// Toggle false positive reason field
+window.toggleFalsePositiveReason = function () {
+    const status = document.getElementById('vulnNewStatus').value;
+    const reasonGroup = document.getElementById('falsePositiveReasonGroup');
+
+    if (status === 'false_positive') {
+        reasonGroup.style.display = 'block';
+    } else {
+        reasonGroup.style.display = 'none';
+    }
+};
+
+// Update vulnerability status
+window.updateVulnStatus = async function (event) {
+    event.preventDefault();
+
+    const instanceId = document.getElementById('vulnDetailInstanceId').value;
+    const newStatus = document.getElementById('vulnNewStatus').value;
+    const falsePositiveReason = document.getElementById('vulnFalsePositiveReason').value;
+
+    const data = {
+        status: newStatus
+    };
+
+    if (newStatus === 'false_positive' && falsePositiveReason) {
+        data.false_positive_reason = falsePositiveReason;
+    }
+
+    try {
+        const response = await fetch(`/api/vulns/instances/${instanceId}`, {
+            method: 'PATCH',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(data)
+        });
+
+        if (response.ok) {
+            alert('Vulnerability status updated successfully!');
+            closeVulnDetails();
+            // Refresh the vulnerability list
+            await applyVulnFilters();
+        } else {
+            const error = await response.json();
+            alert(`Failed to update status: ${error.error || 'Unknown error'}`);
+        }
+    } catch (error) {
+        console.error('Error updating vulnerability status:', error);
+        alert('Failed to update vulnerability status');
+    }
 };
