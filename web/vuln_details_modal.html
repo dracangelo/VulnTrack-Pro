@@ -85,9 +85,15 @@
                     <label class="form-label">Reason (for False Positive)</label>
                     <textarea class="form-textarea" id="vulnFalsePositiveReason" rows="3"></textarea>
                 </div>
-                <div class="flex gap-4">
-                    <button type="button" class="btn btn-secondary" onclick="closeVulnDetails()">Cancel</button>
-                    <button type="submit" class="btn btn-primary">Update Status</button>
+                <div class="flex gap-4" style="justify-content: space-between; align-items: center;">
+                    <div>
+                        <button type="button" class="btn btn-secondary" onclick="closeVulnDetails()">Cancel</button>
+                        <button type="submit" class="btn btn-primary">Update Status</button>
+                    </div>
+                    <button type="button" class="btn btn-warning" id="btnCreateTicketFromVuln"
+                        onclick="triggerCreateTicket()">
+                        <i class="fas fa-ticket-alt"></i> Create Ticket
+                    </button>
                 </div>
             </form>
         </div>

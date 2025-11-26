@@ -258,3 +258,16 @@ window.updateVulnStatus = async function (event) {
         alert('Failed to update vulnerability status');
     }
 };
+
+// Trigger create ticket from vulnerability details
+window.triggerCreateTicket = function () {
+    const vulnId = document.getElementById('vulnDetailInstanceId').value;
+    const vulnName = document.getElementById('vulnDetailTitle').textContent;
+
+    if (vulnId && typeof createTicketFromVuln === 'function') {
+        closeVulnDetails();
+        createTicketFromVuln(vulnId, vulnName);
+    } else {
+        console.error('Create ticket function not available or vuln ID missing');
+    }
+};

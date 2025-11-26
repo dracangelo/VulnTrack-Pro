@@ -52,7 +52,7 @@ document.addEventListener('DOMContentLoaded', () => {
             fetchScans(); // Fetch scans when viewing scans section
             refreshQueueStatus(); // Also refresh queue status
         } else if (sectionId === 'tickets') {
-            // fetchTickets(); // Assuming this function exists elsewhere
+            fetchTickets();
         } else if (sectionId === 'vulnerabilities') {
             populateVulnTargets(); // Populate target dropdown
         }

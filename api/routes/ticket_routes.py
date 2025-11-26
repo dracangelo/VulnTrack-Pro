@@ -45,12 +45,36 @@ def create_ticket():
     
     return jsonify({'message': 'Ticket created', 'id': new_ticket.id}), 201
 
+@ticket_bp.route('/<int:id>', methods=['GET'])
+def get_ticket(id):
+    ticket = Ticket.query.get_or_404(id)
+    return jsonify({
+        'id': ticket.id,
+        'title': ticket.title,
+        'description': ticket.description,
+        'status': ticket.status,
+        'priority': ticket.priority,
+        'assignee_id': ticket.assignee_id,
+        'created_at': ticket.created_at.isoformat(),
+        'updated_at': ticket.updated_at.isoformat(),
+        'vulnerabilities': [v.to_dict() for v in ticket.vulnerabilities]
+    })
+
+@ticket_bp.route('/<int:id>', methods=['DELETE'])
+def delete_ticket(id):
+    ticket = Ticket.query.get_or_404(id)
+    db.session.delete(ticket)
+    db.session.commit()
+    return jsonify({'message': 'Ticket deleted'})
+
 @ticket_bp.route('/<int:id>', methods=['PUT'])
 def update_ticket(id):
     ticket = Ticket.query.get_or_404(id)
     data = request.get_json()
     
     old_assignee = ticket.assignee_id
+    old_status = ticket.status
+    
     ticket.title = data.get('title', ticket.title)
     ticket.description = data.get('description', ticket.description)
     ticket.status = data.get('status', ticket.status)
@@ -58,6 +82,18 @@ def update_ticket(id):
     ticket.assignee_id = data.get('assignee_id', ticket.assignee_id)
     
     db.session.commit()
+    
+    from api.services.activity_service import ActivityService
+    
+    # Log status change
+    if old_status != ticket.status:
+        ActivityService.log_activity(
+            user_id=data.get('user_id'),
+            action='update_ticket_status',
+            target_type='Ticket',
+            target_id=ticket.id,
+            details=f"Status changed from {old_status} to {ticket.status}"
+        )
     
     # Notify if assigned
     if ticket.assignee_id and ticket.assignee_id != old_assignee:
