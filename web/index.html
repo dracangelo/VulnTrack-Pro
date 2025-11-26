@@ -244,9 +244,59 @@
                 <h1 class="page-title">Vulnerabilities</h1>
             </div>
 
+            <!-- Target Selection -->
             <div class="card">
                 <div class="card-header">
+                    <h3 class="card-title">Select Target</h3>
+                </div>
+                <div class="form-group" style="margin-bottom: 0;">
+                    <select class="form-select" id="vulnTargetSelect" onchange="loadTargetVulnerabilities()">
+                        <option value="">Choose a target to view vulnerabilities...</option>
+                    </select>
+                </div>
+            </div>
+
+            <!-- Vulnerability Filters (hidden until target selected) -->
+            <div class="card hidden" id="vulnFiltersCard">
+                <div class="card-header">
+                    <h3 class="card-title">Filters</h3>
+                    <button class="btn btn-secondary" onclick="clearVulnFilters()">Clear Filters</button>
+                </div>
+                <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 1rem;">
+                    <div class="form-group" style="margin-bottom: 0;">
+                        <label class="form-label">Severity</label>
+                        <select class="form-select" id="vulnSeverityFilter" onchange="applyVulnFilters()">
+                            <option value="">All Severities</option>
+                            <option value="Critical">Critical</option>
+                            <option value="High">High</option>
+                            <option value="Medium">Medium</option>
+                            <option value="Low">Low</option>
+                            <option value="Info">Info</option>
+                        </select>
+                    </div>
+                    <div class="form-group" style="margin-bottom: 0;">
+                        <label class="form-label">Status</label>
+                        <select class="form-select" id="vulnStatusFilter" onchange="applyVulnFilters()">
+                            <option value="open">Open</option>
+                            <option value="">All Statuses</option>
+                            <option value="fixed">Fixed</option>
+                            <option value="false_positive">False Positive</option>
+                            <option value="accepted_risk">Accepted Risk</option>
+                        </select>
+                    </div>
+                    <div class="form-group" style="margin-bottom: 0;">
+                        <label class="form-label">Search</label>
+                        <input type="text" class="form-input" id="vulnSearchFilter"
+                            placeholder="Search vulnerability name..." onkeyup="applyVulnFilters()">
+                    </div>
+                </div>
+            </div>
+
+            <!-- Vulnerability List (hidden until target selected) -->
+            <div class="card hidden" id="vulnListCard">
+                <div class="card-header">
                     <h3 class="card-title">Vulnerability Instances</h3>
+                    <span id="vulnCount" style="color: var(--text-secondary);">0 vulnerabilities</span>
                 </div>
                 <div class="table-container">
                     <table>
@@ -254,8 +304,10 @@
                             <tr>
                                 <th>Vulnerability</th>
                                 <th>Severity</th>
-                                <th>Target</th>
+                                <th>CVSS</th>
+                                <th>Port</th>
                                 <th>Status</th>
+                                <th>Detected</th>
                                 <th>Actions</th>
                             </tr>
                         </thead>
@@ -612,6 +664,7 @@
     </div>
 
     <script src="https://cdn.socket.io/4.5.4/socket.io.min.js"></script>
+    <script src="/static/vuln_management.js"></script>
     <script src="/static/app.js"></script>
 </body>
 

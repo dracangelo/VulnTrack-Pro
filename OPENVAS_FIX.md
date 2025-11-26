@@ -1,107 +1,40 @@
-# OpenVAS Configuration Fix
+# OpenVAS Fix Instructions
 
-## Issues Found and Fixed
+It appears that the OpenVAS (GVM) service is **not running** on your system, which is why the scanner cannot connect.
 
-### 1. ✅ Code Issue - FIXED
-**Problem**: The `openvas_scanner.py` file had duplicate `get_scan_configs()` methods. The second broken version was overriding the working one, causing empty results.
+Since I cannot run `sudo` commands on your behalf, you need to execute the following steps in your terminal:
 
-**Solution**: Removed the duplicate broken method. The code is now fixed.
-
-### 2. ⚠️ Permission Issue - NEEDS YOUR ACTION
-**Problem**: The GVM socket (`/var/run/gvmd/gvmd.sock`) is owned by the `_gvm` group, but your user is not in that group.
-
-**Current socket permissions**:
+## 1. Diagnose the Issue
+Run the setup checker to identify any missing components or configuration errors:
 ```bash
-srw-rw---- 1 _gvm _gvm 0 Nov 25 11:53 /var/run/gvmd/gvmd.sock
+sudo gvm-check-setup
 ```
 
-**Solution**: Add your user to the `_gvm` group by running:
-
+## 2. Start the Service
+If the check passes or tells you to start the service, run:
 ```bash
-sudo usermod -a -G _gvm $USER
+sudo gvm-start
+```
+*Note: It may take a minute for the service to fully start.*
+
+## 3. Verify the Socket
+Check if the socket file exists after starting the service:
+```bash
+ls -l /var/run/gvmd/gvmd.sock
 ```
 
-**Important**: After running this command, you MUST log out and log back in (or reboot) for the group membership to take effect.
+## 4. Verify Permissions
+You are already in the `_gvm` group, so once the socket exists, you should have access.
+If you still get "Permission denied", try logging out and logging back in to refresh your group membership.
 
-## Testing the Fix
-
-After adding yourself to the `_gvm` group and logging back in:
-
-### 1. Verify group membership:
-```bash
-groups
-# You should see "_gvm" in the list
-```
-
-### 2. Test the connection:
+## 5. Test Connection
+Once the service is running, you can test the connection via the API:
 ```bash
 curl http://localhost:5000/api/openvas/test-connection
 ```
 
-Expected response:
-```json
-{
-  "success": true,
-  "message": "Connected to GVM successfully"
-}
-```
-
-### 3. Fetch scan configurations:
+## Troubleshooting
+If `gvm-start` fails, check the logs:
 ```bash
-curl http://localhost:5000/api/openvas/configs
+sudo tail -f /var/log/gvm/gvmd.log
 ```
-
-Expected response (example):
-```json
-[
-  {
-    "id": "daba56c8-73ec-11df-a475-002264764cea",
-    "name": "Full and fast"
-  },
-  {
-    "id": "698f691e-7489-11df-9d8c-002264764cea",
-    "name": "Full and fast ultimate"
-  }
-]
-```
-
-## Quick Fix Commands
-
-Run these commands in order:
-
-```bash
-# 1. Add yourself to the _gvm group
-sudo usermod -a -G _gvm $USER
-
-# 2. Verify the command worked
-getent group _gvm
-
-# 3. Log out and log back in (or reboot)
-# You can also try: newgrp _gvm (but a full logout is more reliable)
-
-# 4. After logging back in, verify group membership
-groups | grep _gvm
-
-# 5. Test the connection
-curl http://localhost:5000/api/openvas/test-connection
-
-# 6. Fetch configs
-curl http://localhost:5000/api/openvas/configs
-```
-
-## Alternative: Run Flask with sudo (NOT RECOMMENDED)
-
-If you don't want to add yourself to the `_gvm` group, you could run the Flask app with sudo, but this is **not recommended** for security reasons:
-
-```bash
-# NOT RECOMMENDED - only for testing
-sudo ./venv/bin/python run.py
-```
-
-## Summary
-
-- ✅ **Code fixed**: Removed duplicate broken method
-- ⚠️ **Action needed**: Add yourself to `_gvm` group and log out/in
-- 🔄 **Server restarted**: Flask is running with the fixed code
-
-Once you complete the permission fix, OpenVAS configs should load properly!

@@ -12,38 +12,20 @@ def get_reports():
 
 @report_bp.route('/stats', methods=['GET'])
 def get_stats():
-    from api.models.vulnerability import VulnerabilityInstance
-    from api.models.target import Target
-    from api.extensions import db
-    from sqlalchemy import func
-
-    # Vulnerabilities by severity
-    severity_counts = db.session.query(
-        VulnerabilityInstance.vulnerability.has(severity='Critical'),
-        VulnerabilityInstance.vulnerability.has(severity='High'),
-        VulnerabilityInstance.vulnerability.has(severity='Medium'),
-        VulnerabilityInstance.vulnerability.has(severity='Low'),
-        VulnerabilityInstance.vulnerability.has(severity='Info')
-    ).all() # This logic is a bit complex for single query with has, let's do simple group by if possible or separate counts.
+    """Get vulnerability statistics for dashboard"""
+    from api.services.vuln_manager import VulnManager
     
-    # Simpler approach: Join and Group By
-    # We need to join VulnerabilityInstance with Vulnerability
-    stats = db.session.query(
-        Vulnerability.severity, func.count(VulnerabilityInstance.id)
-    ).join(VulnerabilityInstance).group_by(Vulnerability.severity).all()
+    vuln_manager = VulnManager()
     
-    severity_data = {s[0]: s[1] for s in stats}
+    # Get severity counts using the new method
+    severity_counts = vuln_manager.get_vulnerabilities_by_severity()
     
-    # Most vulnerable hosts
-    host_stats = db.session.query(
-        Target.name, func.count(VulnerabilityInstance.id)
-    ).join(VulnerabilityInstance).group_by(Target.id).order_by(func.count(VulnerabilityInstance.id).desc()).limit(5).all()
-    
-    host_data = [{'name': h[0], 'count': h[1]} for h in host_stats]
+    # Get top vulnerable hosts
+    top_hosts = vuln_manager.get_top_vulnerable_hosts(limit=5)
     
     return jsonify({
-        'severity_counts': severity_data,
-        'top_vulnerable_hosts': host_data
+        'severity_counts': severity_counts,
+        'top_vulnerable_hosts': top_hosts
     })
 
 @report_bp.route('/<int:scan_id>/download', methods=['GET'])

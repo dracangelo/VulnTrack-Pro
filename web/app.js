@@ -53,8 +53,8 @@ document.addEventListener('DOMContentLoaded', () => {
             refreshQueueStatus(); // Also refresh queue status
         } else if (sectionId === 'tickets') {
             // fetchTickets(); // Assuming this function exists elsewhere
-        } else if (sectionId === 'vulnerabilities') { // Changed from 'vulnerabilitiesSection' to 'vulnerabilities'
-            // fetchVulnerabilities(); // Assuming this function exists elsewhere
+        } else if (sectionId === 'vulnerabilities') {
+            populateVulnTargets(); // Populate target dropdown
         }
     }
 

@@ -29,4 +29,4 @@ class Scan(db.Model):
     # Queue management
     queue_position = db.Column(db.Integer, default=0)  # 0 = not queued/running
     
-    vulnerabilities = db.relationship('VulnerabilityInstance', backref='scan', lazy=True)
+    target = db.relationship('Target', back_populates='scans')

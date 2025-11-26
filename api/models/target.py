@@ -21,4 +21,4 @@ class Target(db.Model):
     group_id = db.Column(db.Integer, db.ForeignKey('target_groups.id'), nullable=True)
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
 
-    scans = db.relationship('Scan', backref='target', lazy=True)
+    scans = db.relationship('Scan', back_populates='target', lazy=True)
