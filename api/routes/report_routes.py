@@ -31,25 +31,37 @@ def get_stats():
 @report_bp.route('/<int:scan_id>/download', methods=['GET'])
 def download_report(scan_id):
     from api.services.report_generator import ReportGenerator
-    from flask import Response
+    from api.extensions import db
     
     fmt = request.args.get('format', 'html')
     
     if fmt == 'html':
-        report_content = ReportGenerator.generate_html_report(scan_id)
-        if not report_content:
-            return jsonify({'error': 'Scan not found or report generation failed'}), 404
-            
+        # Generate or retrieve stored HTML report
+        if not scan.report_html:
+            report_content = ReportGenerator.generate_html_report(scan_id)
+            if not report_content:
+                return jsonify({'error': 'Scan not found or report generation failed'}), 404
+            # Save to DB
+            scan.report_html = report_content
+            db.session.commit()
+        else:
+            report_content = scan.report_html
         return Response(
             report_content,
             mimetype="text/html",
             headers={"Content-disposition": f"attachment; filename=scan_report_{scan_id}.html"}
         )
     elif fmt == 'pdf':
-        pdf_file = ReportGenerator.generate_pdf_report(scan_id)
-        if not pdf_file:
-            return jsonify({'error': 'PDF generation failed'}), 500
-            
+        # Generate or retrieve stored PDF report
+        if not scan.report_pdf:
+            pdf_file = ReportGenerator.generate_pdf_report(scan_id)
+            if not pdf_file:
+                return jsonify({'error': 'PDF generation failed'}), 500
+            # Save to DB
+            scan.report_pdf = pdf_file
+            db.session.commit()
+        else:
+            pdf_file = scan.report_pdf
         return Response(
             pdf_file,
             mimetype="application/pdf",

@@ -79,9 +79,9 @@
                     <div class="card-header">
                         <h3 class="card-title">Top Vulnerable Hosts</h3>
                     </div>
-                    <ul id="topHostsList" style="list-style: none; padding: 0;">
-                        <!-- Populated by JS -->
-                    </ul>
+                    <div style="height: 250px;">
+                        <canvas id="topHostsChart"></canvas>
+                    </div>
                 </div>
             </div>
 
@@ -103,6 +103,22 @@
                             <!-- Populated by JS -->
                         </tbody>
                     </table>
+                </div>
+            </div>
+
+            <!-- Log Viewer -->
+            <div class="card" style="margin-top: 1.5rem;">
+                <div class="card-header">
+                    <h3 class="card-title">System Logs</h3>
+                    <div class="flex gap-2">
+                        <span class="status-indicator active" id="logConnectionStatus"
+                            title="Real-time connection active"></span>
+                        <button class="btn btn-sm btn-secondary" onclick="clearLogs()">Clear</button>
+                    </div>
+                </div>
+                <div id="logViewer" class="log-viewer">
+                    <div class="log-entry"><span class="log-time">[System]</span> <span class="log-msg">Log viewer
+                            initialized...</span></div>
                 </div>
             </div>
         </section>

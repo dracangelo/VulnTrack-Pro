@@ -514,3 +514,63 @@ tr:hover {
 ::-webkit-scrollbar-thumb:hover {
     background: var(--accent-cyan);
 }
+
+/* Log Viewer */
+.log-viewer {
+    background: #050505;
+    color: #00ff00;
+    font-family: 'Courier New', monospace;
+    padding: 1rem;
+    height: 300px;
+    overflow-y: auto;
+    border-radius: 0.5rem;
+    border: 1px solid var(--border-color);
+    font-size: 0.85rem;
+}
+
+.log-entry {
+    margin-bottom: 0.5rem;
+    border-bottom: 1px solid #111;
+    padding-bottom: 0.25rem;
+    display: flex;
+}
+
+.log-time {
+    color: #666;
+    margin-right: 0.75rem;
+    min-width: 80px;
+}
+
+.log-msg {
+    color: #00ff00;
+    word-break: break-all;
+}
+
+/* Status Indicator */
+.status-indicator {
+    display: inline-block;
+    width: 10px;
+    height: 10px;
+    border-radius: 50%;
+    background: var(--text-secondary);
+    transition: all 0.3s;
+}
+
+.status-indicator.active {
+    background: var(--success);
+    box-shadow: 0 0 8px var(--success);
+}
+
+/* Animations */
+@keyframes fadeIn {
+    from { opacity: 0; transform: translateY(10px); }
+    to { opacity: 1; transform: translateY(0); }
+}
+
+.animate-fade-in {
+    animation: fadeIn 0.5s ease-out forwards;
+}
+
+.card {
+    animation: fadeIn 0.5s ease-out forwards;
+}

@@ -646,17 +646,86 @@ document.addEventListener('DOMContentLoaded', () => {
             }
         });
 
-        // Top Hosts
-        const topHostsList = document.getElementById('topHostsList');
-        if (topHostsList) {
-            topHostsList.innerHTML = data.top_vulnerable_hosts.map(host => `
-                <li style="padding: 0.75rem 0; border-bottom: 1px solid var(--border-color); display: flex; justify-content: space-between;">
-                    <span style="color: var(--text-primary);">${host.name}</span>
-                    <span class="badge badge-error">${host.count} vulnerabilities</span>
-                </li>
-            `).join('');
+        // Top Hosts Chart
+        const topHostsCtx = document.getElementById('topHostsChart');
+        if (topHostsCtx) {
+            // Destroy existing chart if any (to prevent canvas reuse issues)
+            const existingChart = Chart.getChart(topHostsCtx);
+            if (existingChart) existingChart.destroy();
+
+            const labels = data.top_vulnerable_hosts.map(h => h.name);
+            const counts = data.top_vulnerable_hosts.map(h => h.count);
+
+            new Chart(topHostsCtx.getContext('2d'), {
+                type: 'bar',
+                data: {
+                    labels: labels,
+                    datasets: [{
+                        label: 'Vulnerabilities',
+                        data: counts,
+                        backgroundColor: 'rgba(239, 68, 68, 0.8)',
+                        borderColor: '#EF4444',
+                        borderWidth: 1,
+                        borderRadius: 4
+                    }]
+                },
+                options: {
+                    indexAxis: 'y',
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: { display: false }
+                    },
+                    scales: {
+                        x: {
+                            grid: { color: '#2D3748' },
+                            ticks: { color: '#9CA3AF' },
+                            beginAtZero: true
+                        },
+                        y: {
+                            grid: { display: false },
+                            ticks: { color: '#9CA3AF' }
+                        }
+                    }
+                }
+            });
         }
     }
+
+    // Log Viewer
+    async function fetchLogs() {
+        try {
+            const response = await fetch('/api/activity/');
+            const logs = await response.json();
+            const logViewer = document.getElementById('logViewer');
+            if (!logViewer) return;
+
+            // Simple diff check or just rebuild for now
+            logViewer.innerHTML = logs.map(log => `
+                <div class="log-entry">
+                    <span class="log-time">[${new Date(log.timestamp).toLocaleTimeString()}]</span>
+                    <span class="log-msg">
+                        <span style="color: var(--accent-cyan);">${log.action}</span> 
+                        ${log.details ? `- ${log.details}` : ''}
+                    </span>
+                </div>
+            `).join('');
+        } catch (error) {
+            console.error('Error fetching logs:', error);
+        }
+    }
+
+    // Start log polling
+    setInterval(fetchLogs, 5000);
+    fetchLogs(); // Initial fetch
+
+    // Clear logs function
+    window.clearLogs = () => {
+        const logViewer = document.getElementById('logViewer');
+        if (logViewer) {
+            logViewer.innerHTML = '<div class="log-entry"><span class="log-time">[System]</span> <span class="log-msg">Logs cleared</span></div>';
+        }
+    };
 
     // Fetch tickets
     async function fetchTickets() {

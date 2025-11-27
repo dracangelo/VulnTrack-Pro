@@ -189,6 +189,16 @@ class ScanManager:
                         vuln_manager.process_scan_results(scan_id)
                     except Exception as e:
                         print(f"Error processing vulnerabilities: {e}")
+
+                    # Auto-generate HTML Report
+                    try:
+                        from api.services.report_generator import ReportGenerator
+                        report_content = ReportGenerator.generate_html_report(scan_id)
+                        if report_content:
+                            scan.report_html = report_content
+                            db.session.commit()
+                    except Exception as e:
+                        print(f"Error generating report: {e}")
                 
             except Exception as e:
                 print(f"Scan error: {e}")

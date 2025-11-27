@@ -11,8 +11,8 @@ def get_activities():
     return jsonify([{
         'id': a.id,
         'action': a.action,
-        'entity_type': a.entity_type,
-        'entity_id': a.entity_id,
+        'target_type': a.target_type,
+        'target_id': a.target_id,
         'user_id': a.user_id,
         'timestamp': a.timestamp.isoformat() if a.timestamp else None,
         'details': a.details

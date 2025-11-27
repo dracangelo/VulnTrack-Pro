@@ -1,0 +1,107 @@
+============================= test session starts ==============================
+platform linux -- Python 3.13.7, pytest-8.4.2, pluggy-1.6.0 -- /usr/bin/python3
+cachedir: .pytest_cache
+rootdir: /home/vng370/Documents/coding/python/vulnhub
+plugins: typeguard-4.4.4, anyio-4.11.0, Faker-33.3.1
+collecting ... collected 2 items
+
+tests/test_report_content.py::test_generate_html_report_content FAILED   [ 50%]
+tests/test_report_content.py::test_auto_generate_report_on_scan_completion PASSED [100%]
+
+=================================== FAILURES ===================================
+______________________ test_generate_html_report_content _______________________
+
+client = <FlaskClient <Flask 'api'>>, app = <Flask 'api'>
+
+    def test_generate_html_report_content(client, app):
+        """Test that HTML report contains expected sections and data"""
+        with app.app_context():
+            # Create test data
+            target = Target(name="Test Target", ip_address="192.168.1.1")
+            db.session.add(target)
+            db.session.commit()
+    
+            scan = Scan(
+                target_id=target.id,
+                scan_type="nmap",
+                status="completed",
+                started_at=datetime.utcnow(),
+                completed_at=datetime.utcnow()
+            )
+            db.session.add(scan)
+            db.session.commit()
+    
+            # Add a vulnerability
+            vuln_def = Vulnerability(
+                name="Test Vuln",
+                description="Test Description",
+                severity="High",
+                cve_id="CVE-2023-1234"
+            )
+            db.session.add(vuln_def)
+            db.session.commit()
+    
+            vuln_inst = VulnerabilityInstance(
+                vulnerability_id=vuln_def.id,
+                scan_id=scan.id,
+                target_id=target.id,
+                status="open",
+                port=80,
+                protocol="tcp"
+            )
+            db.session.add(vuln_inst)
+            db.session.commit()
+    
+            # Generate report
+            html_content = ReportGenerator.generate_html_report(scan.id)
+    
+            # Verify content
+            assert html_content is not None
+            assert "Vulnerability Scan Report" in html_content
+            assert f"Scan ID:</strong> {scan.id}" in html_content
+            assert "Test Target" in html_content
+            assert "192.168.1.1" in html_content
+            assert "Test Vuln" in html_content
+            assert "Test Description" in html_content
+            assert "High" in html_content
+>           assert "CVE-2023-1234" in html_content
+E           assert 'CVE-2023-1234' in '<!DOCTYPE html>\n<html>\n\n<head>\n    <title>Vulnerability Scan Report #1</title>\n    <style>\n        body {\n            font-family: Arial, sans-serif;\n            margin: 40px;\n            background: var(--bg-primary);\n            color: var(--text-primary);\n        }\n\n        h1 {\n            color: #333;\n        }\n\n        .meta {\n            margin-bottom: 20px;\n            color: #666;\n        }\n\n        table {\n            width: 100%;\n            border-collapse: collapse;\n            margin-top: 20px;\n        }\n\n        th,\n        td {\n            border: 1px solid #ddd;\n            padding: 8px;\n            text-align: left;\n        }\n\n        th {\n            background-color: #f2f2f2;\n        }\n\n        .severity-Critical {\n            color: red;\n            font-weight: bold;\n        }\n\n        .severity-High {\n            color: orange;\n            font-weight: bold;\n        }\n\n        .severity-Medium {\n            color: #d4d400;\n        }\n\n        .severity-Low {\n            color: green;\n        }\n\n        .severity-Info {\n            color: blue;\n        }\n    </style>\n</head>\n\n<body>\n    <h1>Vulnerability Scan Report</h1>\n    <div class="meta">\n        <p><strong>Scan ID:</strong> 1</p>\n        <p><strong>Target:</strong> Test Target (192.168.1.1)</p>\n        <p><strong>Date:</strong> 2025-11-27 05:26:20.514419</p>\n        <p><strong>Status:</strong> completed</p>\n    </div>\n    <h2>Findings</h2>\n    <table>\n        <thead>\n            <tr>\n                <th>Vulnerability</th>\n                <th>Severity</th>\n                <th>Status</th>\n            </tr>\n        </thead>\n        <tbody>\n            \n            <tr>\n                <td>\n                    <strong>Test Vuln</strong><br>\n                    <small>Test Description</small>\n                </td>\n                <td class="severity-High">High</td>\n                <td>open</td>\n            </tr>\n            \n        </tbody>\n    </table>\n</body>\n\n</html>'
+
+tests/test_report_content.py:60: AssertionError
+---------------------------- Captured stdout setup -----------------------------
+Could not load schedules: (sqlite3.OperationalError) no such table: schedules
+[SQL: SELECT schedules.id AS schedules_id, schedules.name AS schedules_name, schedules.description AS schedules_description, schedules.target_id AS schedules_target_id, schedules.scan_type AS schedules_scan_type, schedules.scanner_args AS schedules_scanner_args, schedules.openvas_config_id AS schedules_openvas_config_id, schedules.cron_expression AS schedules_cron_expression, schedules.next_run AS schedules_next_run, schedules.last_run AS schedules_last_run, schedules.enabled AS schedules_enabled, schedules.created_at AS schedules_created_at, schedules.updated_at AS schedules_updated_at 
+FROM schedules 
+WHERE schedules.enabled = 1]
+(Background on this error at: https://sqlalche.me/e/20/e3q8)
+------------------------------ Captured log setup ------------------------------
+WARNING  apscheduler.scheduler:base.py:1162 Error getting due jobs from job store 'default': (sqlite3.OperationalError) no such table: apscheduler_jobs
+[SQL: SELECT apscheduler_jobs.id, apscheduler_jobs.job_state 
+FROM apscheduler_jobs 
+WHERE apscheduler_jobs.next_run_time <= ? ORDER BY apscheduler_jobs.next_run_time]
+[parameters: (1764221180.360846,)]
+(Background on this error at: https://sqlalche.me/e/20/e3q8)
+=============================== warnings summary ===============================
+tests/test_report_content.py::test_generate_html_report_content
+tests/test_report_content.py::test_generate_html_report_content
+tests/test_report_content.py::test_generate_html_report_content
+tests/test_report_content.py::test_generate_html_report_content
+  /usr/lib/python3/dist-packages/sqlalchemy/sql/schema.py:3624: DeprecationWarning: datetime.datetime.utcnow() is deprecated and scheduled for removal in a future version. Use timezone-aware objects to represent datetimes in UTC: datetime.datetime.now(datetime.UTC).
+    return util.wrap_callable(lambda ctx: fn(), fn)  # type: ignore
+
+tests/test_report_content.py::test_generate_html_report_content
+  /home/vng370/Documents/coding/python/vulnhub/tests/test_report_content.py:21: DeprecationWarning: datetime.datetime.utcnow() is deprecated and scheduled for removal in a future version. Use timezone-aware objects to represent datetimes in UTC: datetime.datetime.now(datetime.UTC).
+    started_at=datetime.utcnow(),
+
+tests/test_report_content.py::test_generate_html_report_content
+  /home/vng370/Documents/coding/python/vulnhub/tests/test_report_content.py:22: DeprecationWarning: datetime.datetime.utcnow() is deprecated and scheduled for removal in a future version. Use timezone-aware objects to represent datetimes in UTC: datetime.datetime.now(datetime.UTC).
+    completed_at=datetime.utcnow()
+
+tests/test_report_content.py::test_generate_html_report_content
+  /home/vng370/Documents/coding/python/vulnhub/api/services/report_generator.py:8: LegacyAPIWarning: The Query.get() method is considered legacy as of the 1.x series of SQLAlchemy and becomes a legacy construct in 2.0. The method is now available as Session.get() (deprecated since: 2.0) (Background on SQLAlchemy 2.0 at: https://sqlalche.me/e/b8d9)
+    scan = Scan.query.get(scan_id)
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+=========================== short test summary info ============================
+FAILED tests/test_report_content.py::test_generate_html_report_content - assert 'CVE-2023-1234' in '<!DOCTYPE html>\n<html>\n\n<head>\n    <title>Vulnerability Scan Report #1</title>\n    <style>\n        body {\n            font-family: Arial, sans-serif;\n            margin: 40px;\n            background: var(--bg-primary);\n            color: var(--text-primary);\n        }\n\n        h1 {\n            color: #333;\n        }\n\n        .meta {\n            margin-bottom: 20px;\n            color: #666;\n        }\n\n        table {\n            width: 100%;\n            border-collapse: collapse;\n            margin-top: 20px;\n        }\n\n        th,\n        td {\n            border: 1px solid #ddd;\n            padding: 8px;\n            text-align: left;\n        }\n\n        th {\n            background-color: #f2f2f2;\n        }\n\n        .severity-Critical {\n            color: red;\n            font-weight: bold;\n        }\n\n        .severity-High {\n            color: orange;\n            font-weight: bold;\n        }\n\n        .severity-Medium {\n            color: #d4d400;\n        }\n\n        .severity-Low {\n            color: green;\n        }\n\n        .severity-Info {\n            color: blue;\n        }\n    </style>\n</head>\n\n<body>\n    <h1>Vulnerability Scan Report</h1>\n    <div class="meta">\n        <p><strong>Scan ID:</strong> 1</p>\n        <p><strong>Target:</strong> Test Target (192.168.1.1)</p>\n        <p><strong>Date:</strong> 2025-11-27 05:26:20.514419</p>\n        <p><strong>Status:</strong> completed</p>\n    </div>\n    <h2>Findings</h2>\n    <table>\n        <thead>\n            <tr>\n                <th>Vulnerability</th>\n                <th>Severity</th>\n                <th>Status</th>\n            </tr>\n        </thead>\n        <tbody>\n            \n            <tr>\n                <td>\n                    <strong>Test Vuln</strong><br>\n                    <small>Test Description</small>\n                </td>\n                <td class="severity-High">High</td>\n                <td>open</td>\n            </tr>\n            \n        </tbody>\n    </table>\n</body>\n\n</html>'
+=================== 1 failed, 1 passed, 7 warnings in 2.24s ====================

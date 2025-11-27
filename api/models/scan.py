@@ -3,6 +3,9 @@ from datetime import datetime
 
 class Scan(db.Model):
     __tablename__ = 'scans'
+    # Store generated reports
+    report_html = db.Column(db.Text)  # HTML report content
+    report_pdf = db.Column(db.LargeBinary)  # PDF binary data
 
     id = db.Column(db.Integer, primary_key=True)
     target_id = db.Column(db.Integer, db.ForeignKey('targets.id'), nullable=False)
