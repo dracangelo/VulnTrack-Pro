@@ -4,9 +4,9 @@ from flask_talisman import Talisman
 from api.config import Config
 import logging
 
-def create_app():
+def create_app(config_class=Config):
     app = Flask(__name__, static_folder='../web', static_url_path='/static')
-    app.config.from_object(Config)
+    app.config.from_object(config_class)
     
     # Initialize extensions
     from api.extensions import db, migrate, limiter, socketio
@@ -40,7 +40,7 @@ def create_app():
     from api.routes.target_group_routes import target_group_bp
     from api.routes.user_routes import user_bp
     from api.routes.vuln_routes import vuln_bp
-    from api.routes.activity_routes import activity_bp
+
     from api.routes.openvas_routes import openvas_bp
     from api.routes.schedule_routes import schedule_bp
 
@@ -51,7 +51,7 @@ def create_app():
     app.register_blueprint(target_group_bp)
     app.register_blueprint(user_bp)
     app.register_blueprint(vuln_bp)
-    app.register_blueprint(activity_bp)
+
     app.register_blueprint(openvas_bp)
     app.register_blueprint(schedule_bp)
     

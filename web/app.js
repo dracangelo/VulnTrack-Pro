@@ -55,6 +55,8 @@ document.addEventListener('DOMContentLoaded', () => {
             fetchTickets();
         } else if (sectionId === 'vulnerabilities') {
             populateVulnTargets(); // Populate target dropdown
+        } else if (sectionId === 'reports') {
+            fetchReports();
         }
     }
 
@@ -692,40 +694,7 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     }
 
-    // Log Viewer
-    async function fetchLogs() {
-        try {
-            const response = await fetch('/api/activity/');
-            const logs = await response.json();
-            const logViewer = document.getElementById('logViewer');
-            if (!logViewer) return;
 
-            // Simple diff check or just rebuild for now
-            logViewer.innerHTML = logs.map(log => `
-                <div class="log-entry">
-                    <span class="log-time">[${new Date(log.timestamp).toLocaleTimeString()}]</span>
-                    <span class="log-msg">
-                        <span style="color: var(--accent-cyan);">${log.action}</span> 
-                        ${log.details ? `- ${log.details}` : ''}
-                    </span>
-                </div>
-            `).join('');
-        } catch (error) {
-            console.error('Error fetching logs:', error);
-        }
-    }
-
-    // Start log polling
-    setInterval(fetchLogs, 5000);
-    fetchLogs(); // Initial fetch
-
-    // Clear logs function
-    window.clearLogs = () => {
-        const logViewer = document.getElementById('logViewer');
-        if (logViewer) {
-            logViewer.innerHTML = '<div class="log-entry"><span class="log-time">[System]</span> <span class="log-msg">Logs cleared</span></div>';
-        }
-    };
 
     // Fetch tickets
     async function fetchTickets() {
@@ -1115,6 +1084,130 @@ document.addEventListener('DOMContentLoaded', () => {
         if (sectionId === 'schedules') {
             fetchSchedules();
         }
+    };
+
+    // ========== Reports Management ==========
+    async function fetchReports() {
+        try {
+            const response = await fetch('/api/reports/');
+            const reports = await response.json();
+            renderReports(reports);
+        } catch (error) {
+            console.error('Error fetching reports:', error);
+        }
+    }
+
+    function renderReports(reports) {
+        const reportsList = document.getElementById('reportsList');
+        if (!reportsList) return;
+
+        if (reports.length === 0) {
+            reportsList.innerHTML = '<tr><td colspan="7" style="text-align: center; color: var(--text-secondary);">No reports yet</td></tr>';
+            return;
+        }
+
+        reportsList.innerHTML = reports.map(report => `
+            <tr>
+                <td><span class="badge badge-info">#${report.id}</span></td>
+                <td>${report.title}</td>
+                <td><span class="badge badge-${report.type === 'scan' ? 'success' : 'warning'}">${report.type}</span></td>
+                <td><span class="badge badge-cyan">${report.format.toUpperCase()}</span></td>
+                <td>${new Date(report.created_at).toLocaleString()}</td>
+                <td>${getReportStatusBadge(report.status)}</td>
+                <td>
+                    ${report.status === 'completed' ?
+                `<button onclick="downloadReportById(${report.id})" class="btn btn-primary" style="padding: 0.5rem 1rem;">
+                            <i class="fas fa-download"></i> Download
+                        </button>` :
+                '<span style="color: var(--text-muted);">-</span>'}
+                </td>
+            </tr>
+        `).join('');
+    }
+
+    function getReportStatusBadge(status) {
+        const badges = {
+            'completed': '<span class="badge badge-success">Completed</span>',
+            'pending': '<span class="badge badge-warning">Pending</span>',
+            'failed': '<span class="badge badge-error">Failed</span>'
+        };
+        return badges[status] || `<span class="badge">${status}</span>`;
+    }
+
+    window.showCreateReportModal = () => {
+        document.getElementById('createReportModal').classList.remove('hidden');
+        populateReportScans();
+    };
+
+    window.closeCreateReportModal = () => {
+        document.getElementById('createReportModal').classList.add('hidden');
+    };
+
+    async function populateReportScans() {
+        try {
+            const response = await fetch('/api/scans/');
+            const scans = await response.json();
+            const select = document.getElementById('reportScanSelect');
+
+            // Filter only completed scans
+            const completedScans = scans.filter(s => s.status === 'completed');
+
+            if (completedScans.length === 0) {
+                select.innerHTML = '<option value="">No completed scans available</option>';
+                return;
+            }
+
+            select.innerHTML = '<option value="">Choose a scan...</option>';
+            completedScans.forEach(scan => {
+                const option = document.createElement('option');
+                option.value = scan.id;
+                option.textContent = `#${scan.id} - ${scan.target_name} (${new Date(scan.created_at).toLocaleDateString()})`;
+                select.appendChild(option);
+            });
+        } catch (error) {
+            console.error('Error fetching scans:', error);
+        }
+    }
+
+    window.generateReport = async (event) => {
+        event.preventDefault();
+
+        const scanId = document.getElementById('reportScanSelect').value;
+        const format = document.getElementById('reportFormat').value;
+        const type = document.getElementById('reportType').value;
+
+        if (!scanId) {
+            alert('Please select a scan');
+            return;
+        }
+
+        try {
+            const response = await fetch('/api/reports/', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    scan_id: parseInt(scanId),
+                    format: format,
+                    type: type
+                })
+            });
+
+            if (response.ok) {
+                closeCreateReportModal();
+                fetchReports();
+                alert('Report generated successfully!');
+            } else {
+                const error = await response.json();
+                alert('Failed to generate report: ' + (error.error || 'Unknown error'));
+            }
+        } catch (error) {
+            console.error('Error generating report:', error);
+            alert('Error generating report: ' + error.message);
+        }
+    };
+
+    window.downloadReportById = (reportId) => {
+        window.location.href = `/api/reports/${reportId}/download`;
     };
 
     // Initial data fetch
