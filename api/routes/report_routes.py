@@ -1,6 +1,7 @@
-from flask import Blueprint, jsonify, request
+from flask import Blueprint, jsonify, request, Response
 from api.models.vulnerability import Vulnerability, VulnerabilityInstance
 from api.models.target import Target
+from api.models.scan import Scan
 from api.extensions import db
 from sqlalchemy import func
 
@@ -32,6 +33,10 @@ def get_stats():
 def download_report(scan_id):
     from api.services.report_generator import ReportGenerator
     from api.extensions import db
+    
+    scan = Scan.query.get(scan_id)
+    if not scan:
+        return jsonify({'error': 'Scan not found'}), 404
     
     fmt = request.args.get('format', 'html')
     
