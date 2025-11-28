@@ -1219,3 +1219,30 @@ document.addEventListener('DOMContentLoaded', () => {
     // Auto-refresh scans every 10 seconds
     setInterval(fetchScans, 10000);
 });
+
+// Mobile Menu Functions (outside DOMContentLoaded to be globally accessible)
+function toggleMobileMenu() {
+    const sidebar = document.querySelector('.sidebar');
+    const overlay = document.querySelector('.mobile-overlay');
+    sidebar.classList.toggle('mobile-open');
+    overlay.classList.toggle('active');
+}
+
+function closeMobileMenu() {
+    const sidebar = document.querySelector('.sidebar');
+    const overlay = document.querySelector('.mobile-overlay');
+    sidebar.classList.remove('mobile-open');
+    overlay.classList.remove('active');
+}
+
+// Close mobile menu when clicking on nav items
+document.addEventListener('DOMContentLoaded', () => {
+    const navItems = document.querySelectorAll('.nav-item');
+    navItems.forEach(item => {
+        item.addEventListener('click', () => {
+            if (window.innerWidth <= 768) {
+                closeMobileMenu();
+            }
+        });
+    });
+});
