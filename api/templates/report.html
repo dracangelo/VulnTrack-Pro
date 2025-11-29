@@ -70,6 +70,7 @@
         <p><strong>Status:</strong> {{ scan.status }}</p>
     </div>
     <h2>Findings</h2>
+    {% if vulns %}
     <table>
         <thead>
             <tr>
@@ -91,6 +92,10 @@
             {% endfor %}
         </tbody>
     </table>
+    {% else %}
+    <p>No vulnerabilities found in this scan.</p>
+    <p><em>This scan completed successfully but did not identify any vulnerabilities. Open ports and services may have been discovered but are not classified as vulnerabilities.</em></p>
+    {% endif %}
 </body>
 
 </html>

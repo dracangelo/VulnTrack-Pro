@@ -93,6 +93,19 @@
                 </div>
             </div>
 
+            <!-- Selected Host Display -->
+            <div class="card hidden" id="selectedHostCard">
+                <div class="card-header">
+                    <h3 class="card-title">Selected Host Details</h3>
+                    <button class="btn btn-xs btn-secondary" onclick="clearHostSelection()">
+                        <i class="fas fa-times"></i> Clear Selection
+                    </button>
+                </div>
+                <div class="card-body" id="selectedHostContent">
+                    <!-- Populated by JS -->
+                </div>
+            </div>
+
             <div class="card">
                 <div class="card-header">
                     <h3 class="card-title">Recent Activity</h3>
@@ -266,6 +279,37 @@
                 </div>
             </div>
 
+            <!-- Target Details Card (hidden until target selected) -->
+            <div class="card hidden" id="vulnTargetDetailsCard">
+                <div class="card-header">
+                    <h3 class="card-title">Target Details</h3>
+                </div>
+                <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 1rem;">
+                    <div>
+                        <div style="font-size: 0.75rem; color: var(--text-secondary); margin-bottom: 0.25rem;">NAME
+                        </div>
+                        <div id="vulnTargetName"
+                            style="font-size: 1.125rem; font-weight: 600; color: var(--text-primary);"></div>
+                    </div>
+                    <div>
+                        <div style="font-size: 0.75rem; color: var(--text-secondary); margin-bottom: 0.25rem;">IP
+                            ADDRESS</div>
+                        <div id="vulnTargetIP"
+                            style="font-size: 1.125rem; font-family: monospace; color: var(--accent-cyan);"></div>
+                    </div>
+                    <div>
+                        <div style="font-size: 0.75rem; color: var(--text-secondary); margin-bottom: 0.25rem;">TOTAL
+                            VULNERABILITIES</div>
+                        <div id="vulnTargetCount" style="font-size: 1.125rem; font-weight: 600; color: #EF4444;"></div>
+                    </div>
+                </div>
+                <div style="margin-top: 1rem;">
+                    <div style="font-size: 0.75rem; color: var(--text-secondary); margin-bottom: 0.25rem;">DESCRIPTION
+                    </div>
+                    <div id="vulnTargetDesc" style="color: var(--text-primary);"></div>
+                </div>
+            </div>
+
             <!-- Vulnerability Filters (hidden until target selected) -->
             <div class="card hidden" id="vulnFiltersCard">
                 <div class="card-header">
@@ -299,13 +343,19 @@
                         <input type="text" class="form-input" id="vulnSearchFilter"
                             placeholder="Search vulnerability name..." onkeyup="applyVulnFilters()">
                     </div>
+                    <div class="form-group" style="margin-bottom: 0;">
+                        <label class="form-label">Service</label>
+                        <select class="form-select" id="vulnServiceFilter" onchange="applyVulnFilters()">
+                            <option value="">All Services</option>
+                        </select>
+                    </div>
                 </div>
             </div>
 
             <!-- Vulnerability List (hidden until target selected) -->
             <div class="card hidden" id="vulnListCard">
                 <div class="card-header">
-                    <h3 class="card-title">Vulnerability Instances</h3>
+                    <h3 class="card-title" id="vulnListTitle">Vulnerability Instances</h3>
                     <span id="vulnCount" style="color: var(--text-secondary);">0 vulnerabilities</span>
                 </div>
                 <div class="table-container">
@@ -700,8 +750,14 @@
                     <p id="vulnDetailCVE"
                         style="color: var(--text-secondary); font-size: 0.875rem; margin-top: 0.5rem;"></p>
                 </div>
-                <button onclick="closeVulnDetails()"
-                    style="background: none; border: none; color: var(--text-secondary); cursor: pointer; font-size: 1.5rem;">&times;</button>
+                <div style="display: flex; gap: 1rem; align-items: center;">
+                    <button class="btn btn-primary" onclick="triggerCreateTicket()"
+                        style="font-size: 0.875rem; padding: 0.25rem 0.75rem;">
+                        <i class="fas fa-ticket-alt"></i> Create Ticket
+                    </button>
+                    <button onclick="closeVulnDetails()"
+                        style="background: none; border: none; color: var(--text-secondary); cursor: pointer; font-size: 1.5rem;">&times;</button>
+                </div>
             </div>
 
             <!-- Severity and CVSS Score -->

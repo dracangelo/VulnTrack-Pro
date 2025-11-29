@@ -20,25 +20,52 @@ function populateVulnTargets() {
 
 // Load vulnerabilities for selected target
 window.loadTargetVulnerabilities = async function () {
-    const targetId = document.getElementById('vulnTargetSelect').value;
+    const select = document.getElementById('vulnTargetSelect');
+    const targetId = select.value;
 
     if (!targetId) {
-        // Hide filters and list if no target selected
+        // Hide filters, list, and details if no target selected
         document.getElementById('vulnFiltersCard').classList.add('hidden');
         document.getElementById('vulnListCard').classList.add('hidden');
+        document.getElementById('vulnTargetDetailsCard').classList.add('hidden');
         return;
     }
 
     currentVulnTargetId = targetId;
 
+    // Update title with target name
+    const targetName = select.options[select.selectedIndex].text;
+    const cleanName = targetName.split(' (')[0];
+    document.getElementById('vulnListTitle').textContent = `Vulnerabilities - ${cleanName}`;
+
     // Show filters and list
     document.getElementById('vulnFiltersCard').classList.remove('hidden');
     document.getElementById('vulnListCard').classList.remove('hidden');
+    document.getElementById('vulnTargetDetailsCard').classList.remove('hidden');
+
+    // Fetch and populate target details
+    try {
+        // We need to fetch the target list again or find it if we stored it
+        // For simplicity, we can fetch the specific target if we had an endpoint, 
+        // but since we have the list in the dropdown, we can try to get info from there or fetch all targets
+        const response = await fetch('/api/targets/');
+        const targets = await response.json();
+        const target = targets.find(t => t.id == targetId);
+
+        if (target) {
+            document.getElementById('vulnTargetName').textContent = target.name;
+            document.getElementById('vulnTargetIP').textContent = target.ip_address;
+            document.getElementById('vulnTargetDesc').textContent = target.description || 'No description provided';
+        }
+    } catch (error) {
+        console.error('Error fetching target details:', error);
+    }
 
     // Load vulnerabilities
     await applyVulnFilters();
 };
 
+// Apply filters and fetch vulnerabilities
 // Apply filters and fetch vulnerabilities
 window.applyVulnFilters = async function () {
     if (!currentVulnTargetId) return;
@@ -46,6 +73,7 @@ window.applyVulnFilters = async function () {
     const severity = document.getElementById('vulnSeverityFilter').value;
     const status = document.getElementById('vulnStatusFilter').value;
     const search = document.getElementById('vulnSearchFilter').value;
+    const serviceFilter = document.getElementById('vulnServiceFilter').value;
 
     // Build query params
     const params = new URLSearchParams({
@@ -58,12 +86,48 @@ window.applyVulnFilters = async function () {
 
     try {
         const response = await fetch(`/api/vulns/instances?${params}`);
-        const vulnerabilities = await response.json();
+        let vulnerabilities = await response.json();
+
+        // Populate Service Filter if needed (and if we have results)
+        // We do this BEFORE filtering by service so we see all available services for the current server-side filters
+        populateServiceOptions(vulnerabilities);
+
+        // Client-side filtering for Service
+        if (serviceFilter) {
+            vulnerabilities = vulnerabilities.filter(v => v.service === serviceFilter);
+        }
+
         renderVulnerabilities(vulnerabilities);
     } catch (error) {
         console.error('Error fetching vulnerabilities:', error);
     }
 };
+
+// Helper to populate service options
+function populateServiceOptions(vulnerabilities) {
+    const select = document.getElementById('vulnServiceFilter');
+    const currentSelection = select.value;
+
+    // Extract unique services
+    const services = [...new Set(vulnerabilities.map(v => v.service).filter(s => s))].sort();
+
+    // Save current options to check if we need to update
+    // If we just clear and append, we might lose the selection if the new list doesn't have it (which shouldn't happen if logic is correct)
+    // But to avoid flickering, let's only update if the list is different or empty
+
+    // For simplicity, let's rebuild but try to keep selection
+    select.innerHTML = '<option value="">All Services</option>';
+
+    services.forEach(service => {
+        const option = document.createElement('option');
+        option.value = service;
+        option.textContent = service;
+        if (service === currentSelection) {
+            option.selected = true;
+        }
+        select.appendChild(option);
+    });
+}
 
 // Clear all filters
 window.clearVulnFilters = function () {
@@ -79,6 +143,12 @@ function renderVulnerabilities(vulnerabilities) {
     const vulnCount = document.getElementById('vulnCount');
 
     vulnCount.textContent = `${vulnerabilities.length} ${vulnerabilities.length === 1 ? 'vulnerability' : 'vulnerabilities'}`;
+
+    // Update count in details card
+    const detailsCount = document.getElementById('vulnTargetCount');
+    if (detailsCount) {
+        detailsCount.textContent = vulnerabilities.length;
+    }
 
     if (vulnerabilities.length === 0) {
         vulnList.innerHTML = `

@@ -148,16 +148,69 @@ function createTicketFromVuln(vulnId, vulnTitle) {
 
 // Hook into saveTicket to handle binding if needed
 const originalSaveTicket = saveTicket;
+const modal = document.getElementById('ticketModal');
+const vulnId = modal.dataset.bindVulnId;
+
+if (vulnId) {
+    // We need to wait for the save to complete and get the new ticket ID.
+    // Since originalSaveTicket doesn't return the ID, we need to modify it or duplicate logic.
+    // Let's rewrite saveTicket to handle this properly.
+    // See below for the full rewrite of saveTicket.
+}
+};
+
+// Redefining saveTicket to handle binding
 saveTicket = async function (event) {
-    await originalSaveTicket(event);
+    event.preventDefault();
 
-    const modal = document.getElementById('ticketModal');
-    const vulnId = modal.dataset.bindVulnId;
+    const id = document.getElementById('ticketId').value;
+    const data = {
+        title: document.getElementById('ticketTitle').value,
+        description: document.getElementById('ticketDescription').value,
+        priority: document.getElementById('ticketPriority').value,
+        status: document.getElementById('ticketStatus').value,
+        assignee_id: document.getElementById('ticketAssignee').value || null
+    };
 
-    if (vulnId) {
-        // This is tricky because we need the new ticket ID if it was a create operation
-        // For now, let's just clear it to avoid issues. 
-        // A better approach would be to return the ID from saveTicket and use it.
-        delete modal.dataset.bindVulnId;
+    const url = id ? `/api/tickets/${id}` : '/api/tickets/';
+    const method = id ? 'PUT' : 'POST';
+
+    try {
+        const response = await fetch(url, {
+            method: method,
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(data)
+        });
+
+        if (response.ok) {
+            const result = await response.json();
+            const ticketId = id || result.id;
+
+            // Handle Binding
+            const modal = document.getElementById('ticketModal');
+            const vulnId = modal.dataset.bindVulnId;
+
+            if (vulnId && ticketId) {
+                try {
+                    await fetch(`/api/tickets/${ticketId}/bind`, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ vuln_ids: [parseInt(vulnId)] })
+                    });
+                    console.log('Vulnerability bound to ticket');
+                } catch (bindError) {
+                    console.error('Error binding vulnerability:', bindError);
+                    alert('Ticket created but failed to bind vulnerability.');
+                }
+                delete modal.dataset.bindVulnId;
+            }
+
+            closeTicketModal();
+            fetchTickets();
+        } else {
+            alert('Failed to save ticket');
+        }
+    } catch (error) {
+        console.error('Error saving ticket:', error);
     }
 };

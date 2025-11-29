@@ -1,4 +1,5 @@
-from flask import Blueprint, jsonify, request, Response
+from flask import Blueprint, jsonify, request, Response, send_file
+import io
 from api.models.report import Report
 from api.models.scan import Scan
 from api.extensions import db
@@ -91,16 +92,49 @@ def download_report(report_id):
 def get_stats():
     """Get vulnerability statistics for dashboard"""
     from api.services.vuln_manager import VulnManager
+    from api.models.target import Target
     
+    target_id = request.args.get('target_id', type=int)
     vuln_manager = VulnManager()
     
     # Get severity counts using the new method
-    severity_counts = vuln_manager.get_vulnerabilities_by_severity()
+    severity_counts = vuln_manager.get_vulnerabilities_by_severity(target_id=target_id)
     
-    # Get top vulnerable hosts
+    # Get top vulnerable hosts (always global)
     top_hosts = vuln_manager.get_top_vulnerable_hosts(limit=5)
+    
+    # Get selected host information if target_id is provided
+    selected_host = None
+    if target_id:
+        target = Target.query.get(target_id)
+        if target:
+            selected_host = {
+                'id': target.id,
+                'name': target.name,
+                'ip_address': target.ip_address,
+                'count': sum(severity_counts.values())
+            }
     
     return jsonify({
         'severity_counts': severity_counts,
-        'top_vulnerable_hosts': top_hosts
+        'top_vulnerable_hosts': top_hosts,
+        'selected_host': selected_host
     })
+
+@report_bp.route('/scan/<int:scan_id>/pdf', methods=['GET'])
+def download_scan_report_pdf(scan_id):
+    try:
+        pdf_bytes = ReportGenerator.generate_pdf_report(scan_id)
+        if not pdf_bytes:
+            return jsonify({'error': 'Report generation failed or scan not found'}), 404
+            
+        return send_file(
+            io.BytesIO(pdf_bytes),
+            mimetype='application/pdf',
+            as_attachment=True,
+            download_name=f'scan_report_{scan_id}.pdf'
+        )
+    except RuntimeError as e:
+        return jsonify({'error': str(e)}), 500
+    except Exception as e:
+        return jsonify({'error': f'Internal error: {str(e)}'}), 500

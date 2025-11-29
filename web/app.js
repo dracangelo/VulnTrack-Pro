@@ -45,7 +45,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
         // Load data for the section
         if (sectionId === 'dashboard') {
-            // fetchStats(); // Assuming this function exists elsewhere
+            fetchStats();
         } else if (sectionId === 'targets') {
             fetchTargets();
         } else if (sectionId === 'scans') {
@@ -572,7 +572,16 @@ document.addEventListener('DOMContentLoaded', () => {
     };
 
     window.downloadReport = (scanId, format) => {
-        window.location.href = `/api/reports/${scanId}/download?format=${format}`;
+        if (format === 'pdf') {
+            window.location.href = `/api/reports/scan/${scanId}/pdf`;
+        } else {
+            // For HTML, we might need to generate it first or use a different route
+            // For now, let's assume the existing route was intended for reports, not scans.
+            // But since we don't have a direct HTML download for scan ID yet (except via view), 
+            // let's leave it or alert.
+            // Actually, let's just use the view route for HTML
+            window.open(`/api/scans/${scanId}/report`, '_blank');
+        }
     };
 
     window.deleteScan = async (scanId) => {
@@ -599,74 +608,140 @@ document.addEventListener('DOMContentLoaded', () => {
     };
 
     // Dashboard - Fetch stats
-    async function fetchStats() {
+    async function fetchStats(targetId = null) {
         try {
-            const response = await fetch('/api/reports/stats');
+            let url = '/api/reports/stats';
+            if (targetId) {
+                url += `?target_id=${targetId}`;
+            }
+            const response = await fetch(url);
             const data = await response.json();
-            renderDashboard(data);
+            renderDashboard(data, targetId);
         } catch (error) {
             console.error('Error fetching stats:', error);
         }
     }
 
-    function renderDashboard(data) {
+    window.clearHostSelection = function() {
+        fetchStats(null);
+    };
+
+    let severityChartInstance = null;
+    let topHostsChartInstance = null;
+
+    function renderDashboard(data, targetId = null) {
         // Severity Chart
         const ctx = document.getElementById('severityChart');
-        if (!ctx) return;
+        if (ctx) {
+            if (severityChartInstance) {
+                severityChartInstance.destroy();
+            }
 
-        const severityOrder = ['Critical', 'High', 'Medium', 'Low', 'Info'];
-        const counts = severityOrder.map(sev => data.severity_counts[sev] || 0);
+            const severityOrder = ['Critical', 'High', 'Medium', 'Low', 'Info'];
+            const counts = severityOrder.map(sev => data.severity_counts[sev] || 0);
+            const totalVulns = counts.reduce((a, b) => a + b, 0);
 
-        new Chart(ctx.getContext('2d'), {
-            type: 'doughnut',
-            data: {
-                labels: severityOrder,
-                datasets: [{
-                    data: counts,
-                    backgroundColor: [
-                        '#EF4444', // Critical
-                        '#F59E0B', // High
-                        '#EAB308', // Medium
-                        '#10B981', // Low
-                        '#3B82F6'  // Info
-                    ],
-                    borderColor: '#1A2332',
-                    borderWidth: 2
-                }]
-            },
-            options: {
-                responsive: true,
-                plugins: {
-                    legend: {
-                        position: 'bottom',
-                        labels: {
-                            color: '#9CA3AF',
-                            font: { size: 12 }
-                        }
+            // Update card title to reflect filter
+            const severityCardTitle = ctx.closest('.card').querySelector('.card-title');
+            if (severityCardTitle) {
+                if (targetId && data.selected_host) {
+                    severityCardTitle.textContent = `Vulnerabilities: ${data.selected_host.name}`;
+
+                    // Add a reset button if not exists
+                    if (!severityCardTitle.querySelector('.reset-btn')) {
+                        const resetBtn = document.createElement('button');
+                        resetBtn.className = 'btn btn-xs btn-secondary reset-btn';
+                        resetBtn.style.marginLeft = '10px';
+                        resetBtn.innerHTML = '<i class="fas fa-undo"></i> Reset';
+                        resetBtn.onclick = (e) => {
+                            e.stopPropagation();
+                            fetchStats(null);
+                        };
+                        severityCardTitle.appendChild(resetBtn);
+                    }
+                } else {
+                    severityCardTitle.textContent = 'Vulnerabilities by Severity';
+                    // Remove reset button if it exists
+                    const existingResetBtn = severityCardTitle.querySelector('.reset-btn');
+                    if (existingResetBtn) {
+                        existingResetBtn.remove();
                     }
                 }
             }
-        });
+
+            severityChartInstance = new Chart(ctx.getContext('2d'), {
+                type: 'doughnut',
+                data: {
+                    labels: severityOrder,
+                    datasets: [{
+                        data: counts,
+                        backgroundColor: [
+                            '#EF4444', // Critical
+                            '#F59E0B', // High
+                            '#EAB308', // Medium
+                            '#10B981', // Low
+                            '#3B82F6'  // Info
+                        ],
+                        borderColor: '#1A2332',
+                        borderWidth: 2
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    plugins: {
+                        legend: {
+                            position: 'bottom',
+                            labels: {
+                                color: '#9CA3AF',
+                                font: { size: 12 }
+                            }
+                        },
+                        tooltip: {
+                            callbacks: {
+                                label: function(context) {
+                                    const label = context.label || '';
+                                    const value = context.parsed || 0;
+                                    const total = context.dataset.data.reduce((a, b) => a + b, 0);
+                                    const percentage = total > 0 ? ((value / total) * 100).toFixed(1) : 0;
+                                    return `${label}: ${value} (${percentage}%)`;
+                                }
+                            }
+                        }
+                    }
+                }
+            });
+        }
 
         // Top Hosts Chart
         const topHostsCtx = document.getElementById('topHostsChart');
         if (topHostsCtx) {
-            // Destroy existing chart if any (to prevent canvas reuse issues)
-            const existingChart = Chart.getChart(topHostsCtx);
-            if (existingChart) existingChart.destroy();
+            // Destroy existing chart if it exists to allow re-rendering with updated selection
+            if (topHostsChartInstance) {
+                topHostsChartInstance.destroy();
+                topHostsChartInstance = null;
+            }
 
             const labels = data.top_vulnerable_hosts.map(h => h.name);
             const counts = data.top_vulnerable_hosts.map(h => h.count);
+            const ids = data.top_vulnerable_hosts.map(h => h.id);
 
-            new Chart(topHostsCtx.getContext('2d'), {
+            // Highlight selected host with different color
+            const backgroundColors = ids.map(id => 
+                (targetId && id === targetId) ? 'rgba(16, 185, 129, 0.8)' : 'rgba(239, 68, 68, 0.8)'
+            );
+            const borderColors = ids.map(id => 
+                (targetId && id === targetId) ? '#10B981' : '#EF4444'
+            );
+
+            topHostsChartInstance = new Chart(topHostsCtx.getContext('2d'), {
                 type: 'bar',
                 data: {
                     labels: labels,
                     datasets: [{
                         label: 'Vulnerabilities',
                         data: counts,
-                        backgroundColor: 'rgba(239, 68, 68, 0.8)',
-                        borderColor: '#EF4444',
+                        backgroundColor: backgroundColors,
+                        borderColor: borderColors,
                         borderWidth: 1,
                         borderRadius: 4
                     }]
@@ -676,7 +751,12 @@ document.addEventListener('DOMContentLoaded', () => {
                     responsive: true,
                     maintainAspectRatio: false,
                     plugins: {
-                        legend: { display: false }
+                        legend: { display: false },
+                        tooltip: {
+                            callbacks: {
+                                footer: () => 'Click to view vulnerabilities for this host'
+                            }
+                        }
                     },
                     scales: {
                         x: {
@@ -688,9 +768,86 @@ document.addEventListener('DOMContentLoaded', () => {
                             grid: { display: false },
                             ticks: { color: '#9CA3AF' }
                         }
+                    },
+                    onClick: (event, elements) => {
+                        if (elements.length > 0) {
+                            const index = elements[0].index;
+                            const clickedTargetId = ids[index];
+                            // Toggle selection: if clicking the same host, deselect it
+                            if (targetId === clickedTargetId) {
+                                fetchStats(null);
+                            } else {
+                                fetchStats(clickedTargetId);
+                            }
+                        } else {
+                            // Clicked background - reset
+                            fetchStats(null);
+                        }
+                    },
+                    onHover: (event, elements) => {
+                        event.native.target.style.cursor = elements.length ? 'pointer' : 'default';
                     }
                 }
             });
+        }
+
+        // Display selected host information
+        const selectedHostCard = document.getElementById('selectedHostCard');
+        const selectedHostContent = document.getElementById('selectedHostContent');
+        if (selectedHostCard && selectedHostContent) {
+            if (targetId && data.selected_host) {
+                const host = data.selected_host;
+                const severityOrder = ['Critical', 'High', 'Medium', 'Low', 'Info'];
+                const severityColors = {
+                    'Critical': '#EF4444',
+                    'High': '#F59E0B',
+                    'Medium': '#EAB308',
+                    'Low': '#10B981',
+                    'Info': '#3B82F6'
+                };
+
+                let severityBreakdown = '';
+                severityOrder.forEach(sev => {
+                    const count = data.severity_counts[sev] || 0;
+                    if (count > 0) {
+                        severityBreakdown += `
+                            <div style="display: flex; align-items: center; gap: 0.5rem; margin-bottom: 0.5rem;">
+                                <div style="width: 12px; height: 12px; background-color: ${severityColors[sev]}; border-radius: 2px;"></div>
+                                <span style="color: var(--text-secondary);">${sev}:</span>
+                                <span style="font-weight: 600; color: var(--text-primary);">${count}</span>
+                            </div>
+                        `;
+                    }
+                });
+
+                selectedHostContent.innerHTML = `
+                    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 1.5rem;">
+                        <div>
+                            <h4 style="font-size: 1.125rem; font-weight: 600; color: var(--text-primary); margin-bottom: 1rem;">
+                                ${host.name}
+                            </h4>
+                            <div style="display: flex; flex-direction: column; gap: 0.75rem;">
+                                <div>
+                                    <span style="font-size: 0.875rem; color: var(--text-secondary);">IP Address:</span>
+                                    <div style="font-weight: 500; color: var(--text-primary);">${host.ip_address || 'N/A'}</div>
+                                </div>
+                                <div>
+                                    <span style="font-size: 0.875rem; color: var(--text-secondary);">Total Vulnerabilities:</span>
+                                    <div style="font-size: 1.5rem; font-weight: 700; color: var(--accent-cyan);">${host.count}</div>
+                                </div>
+                            </div>
+                        </div>
+                        <div>
+                            <h4 style="font-size: 0.875rem; color: var(--text-secondary); margin-bottom: 0.75rem;">Severity Breakdown</h4>
+                            ${severityBreakdown || '<div style="color: var(--text-secondary);">No vulnerabilities found</div>'}
+                        </div>
+                    </div>
+                `;
+                selectedHostCard.classList.remove('hidden');
+            } else {
+                selectedHostCard.classList.add('hidden');
+                selectedHostContent.innerHTML = '';
+            }
         }
     }
 

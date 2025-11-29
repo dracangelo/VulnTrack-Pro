@@ -24,7 +24,14 @@ class VulnManager:
 
         vulnerabilities = []
         if scan.scan_type == 'nmap':
-            vulnerabilities = self.parser.parse_nmap_results(scan_data)
+            # Handle both old format (list) and new format (dict with 'results' key)
+            if isinstance(scan_data, dict) and 'results' in scan_data:
+                results = scan_data['results']
+            elif isinstance(scan_data, list):
+                results = scan_data
+            else:
+                results = []
+            vulnerabilities = self.parser.parse_nmap_results(results)
         elif scan.scan_type == 'openvas':
             # OpenVAS results are already parsed
             vulnerabilities = scan_data.get('vulnerabilities', [])
@@ -129,16 +136,20 @@ class VulnManager:
         Get vulnerability counts grouped by severity.
         Optionally filter by target.
         """
+        # Use COALESCE to handle NULL severities (treat as 'Info')
         query = db.session.query(
-            Vulnerability.severity,
-            db.func.count(VulnerabilityInstance.id)
-        ).join(VulnerabilityInstance)
+            db.func.coalesce(Vulnerability.severity, 'Info').label('severity'),
+            db.func.count(VulnerabilityInstance.id).label('count')
+        ).join(
+            VulnerabilityInstance, 
+            VulnerabilityInstance.vulnerability_id == Vulnerability.id
+        )
         
         if target_id:
             query = query.filter(VulnerabilityInstance.target_id == target_id)
         
         query = query.filter(VulnerabilityInstance.status == 'open')
-        query = query.group_by(Vulnerability.severity)
+        query = query.group_by(db.func.coalesce(Vulnerability.severity, 'Info'))
         
         results = query.all()
         
@@ -151,15 +162,28 @@ class VulnManager:
         }
         
         for severity, count in results:
-            if severity in severity_counts:
-                severity_counts[severity] = count
+            # Normalize severity to match expected values
+            if severity:
+                severity = severity.strip()
+                if severity in severity_counts:
+                    severity_counts[severity] = count
+                else:
+                    # If severity doesn't match expected values, default to Info
+                    severity_counts['Info'] += count
+            else:
+                severity_counts['Info'] += count
         
         return severity_counts
     
     def get_top_vulnerable_hosts(self, limit=10):
         """
         Get the top N most vulnerable hosts.
+        Includes hosts with vulnerabilities and recently scanned hosts with 0 vulnerabilities.
         """
+        from api.models.target import Target
+        from api.models.scan import Scan
+        
+        # Get hosts with vulnerabilities
         results = db.session.query(
             VulnerabilityInstance.target_id,
             db.func.count(VulnerabilityInstance.id).label('vuln_count')
@@ -169,13 +193,28 @@ class VulnManager:
             VulnerabilityInstance.target_id
         ).order_by(
             db.desc('vuln_count')
-        ).limit(limit).all()
+        ).all()
         
-        from api.models.target import Target
+        # Create a dict of target_id -> count
+        vuln_counts = {target_id: count for target_id, count in results}
+        
+        # Get all targets that have been scanned (have at least one completed scan)
+        scanned_targets = db.session.query(
+            Scan.target_id
+        ).filter(
+            Scan.status == 'completed'
+        ).distinct().all()
+        
+        scanned_target_ids = {target_id for (target_id,) in scanned_targets}
+        
+        # Combine: hosts with vulnerabilities + recently scanned hosts with 0 vulnerabilities
+        all_target_ids = set(vuln_counts.keys()) | scanned_target_ids
+        
         hosts = []
-        for target_id, count in results:
+        for target_id in all_target_ids:
             target = Target.query.get(target_id)
             if target:
+                count = vuln_counts.get(target_id, 0)
                 hosts.append({
                     'id': target.id,
                     'name': target.name,
@@ -183,5 +222,7 @@ class VulnManager:
                     'count': count
                 })
         
-        return hosts
+        # Sort by count (descending) and limit
+        hosts.sort(key=lambda x: x['count'], reverse=True)
+        return hosts[:limit]
 
