@@ -20,5 +20,11 @@ class Target(db.Model):
     description = db.Column(db.String(255))
     group_id = db.Column(db.Integer, db.ForeignKey('target_groups.id'), nullable=True)
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    
+    # OS Summary (latest detected)
+    os_name = db.Column(db.String(255))
+    os_cpe = db.Column(db.Text)
+    os_last_detected = db.Column(db.DateTime)
 
     scans = db.relationship('Scan', back_populates='target', lazy=True)
+    assets = db.relationship('AssetInventory', back_populates='target', lazy=True)

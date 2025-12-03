@@ -18,6 +18,40 @@ function populateVulnTargets() {
         .catch(error => console.error('Error fetching targets:', error));
 }
 
+// Populate host filter dropdown
+function populateVulnHosts() {
+    fetch('/api/targets/')
+        .then(res => res.json())
+        .then(targets => {
+            const select = document.getElementById('vulnHostFilter');
+            select.innerHTML = '<option value="">All Hosts</option>';
+            targets.forEach(target => {
+                const option = document.createElement('option');
+                option.value = target.id;
+                option.textContent = `${target.name} (${target.ip_address})`;
+                select.appendChild(option);
+            });
+        })
+        .catch(error => console.error('Error fetching hosts:', error));
+}
+
+// Populate group filter dropdown
+function populateVulnGroups() {
+    fetch('/api/target-groups/')
+        .then(res => res.json())
+        .then(groups => {
+            const select = document.getElementById('vulnGroupFilter');
+            select.innerHTML = '<option value="">All Groups</option>';
+            groups.forEach(group => {
+                const option = document.createElement('option');
+                option.value = group.id;
+                option.textContent = group.name;
+                select.appendChild(option);
+            });
+        })
+        .catch(error => console.error('Error fetching groups:', error));
+}
+
 // Load vulnerabilities for selected target
 window.loadTargetVulnerabilities = async function () {
     const select = document.getElementById('vulnTargetSelect');
@@ -61,6 +95,10 @@ window.loadTargetVulnerabilities = async function () {
         console.error('Error fetching target details:', error);
     }
 
+    // Populate filter dropdowns
+    populateVulnHosts();
+    populateVulnGroups();
+
     // Load vulnerabilities
     await applyVulnFilters();
 };
@@ -68,17 +106,27 @@ window.loadTargetVulnerabilities = async function () {
 // Apply filters and fetch vulnerabilities
 // Apply filters and fetch vulnerabilities
 window.applyVulnFilters = async function () {
-    if (!currentVulnTargetId) return;
-
+    const hostFilter = document.getElementById('vulnHostFilter').value;
+    const groupFilter = document.getElementById('vulnGroupFilter').value;
     const severity = document.getElementById('vulnSeverityFilter').value;
     const status = document.getElementById('vulnStatusFilter').value;
     const search = document.getElementById('vulnSearchFilter').value;
     const serviceFilter = document.getElementById('vulnServiceFilter').value;
 
     // Build query params
-    const params = new URLSearchParams({
-        target_id: currentVulnTargetId
-    });
+    const params = new URLSearchParams();
+
+    // Use host filter if selected, otherwise use current target
+    if (hostFilter) {
+        params.append('target_id', hostFilter);
+    } else if (currentVulnTargetId) {
+        params.append('target_id', currentVulnTargetId);
+    }
+
+    // Add group filter if selected
+    if (groupFilter) {
+        params.append('group_id', groupFilter);
+    }
 
     if (severity) params.append('severity', severity);
     if (status) params.append('status', status);
@@ -131,9 +179,12 @@ function populateServiceOptions(vulnerabilities) {
 
 // Clear all filters
 window.clearVulnFilters = function () {
+    document.getElementById('vulnHostFilter').value = '';
+    document.getElementById('vulnGroupFilter').value = '';
     document.getElementById('vulnSeverityFilter').value = '';
     document.getElementById('vulnStatusFilter').value = 'open';
     document.getElementById('vulnSearchFilter').value = '';
+    document.getElementById('vulnServiceFilter').value = '';
     applyVulnFilters();
 };
 
@@ -268,6 +319,16 @@ window.showVulnDetails = async function (vulnId) {
         // Show modal
         document.getElementById('vulnDetailsModal').classList.remove('hidden');
 
+        // Reset tabs
+        switchVulnTab('details');
+
+        // Pre-fill exploit search if CVE exists
+        if (vulnDef.cve_id) {
+            document.getElementById('exploitSearchQuery').value = vulnDef.cve_id;
+        } else {
+            document.getElementById('exploitSearchQuery').value = '';
+        }
+
     } catch (error) {
         console.error('Error fetching vulnerability details:', error);
         alert('Failed to load vulnerability details');
@@ -329,15 +390,159 @@ window.updateVulnStatus = async function (event) {
     }
 };
 
-// Trigger create ticket from vulnerability details
-window.triggerCreateTicket = function () {
+// Trigger create ticket from vulnerability details - ONE-CLICK CREATION
+window.triggerCreateTicket = async function () {
     const vulnId = document.getElementById('vulnDetailInstanceId').value;
     const vulnName = document.getElementById('vulnDetailTitle').textContent;
+    const vulnCVE = document.getElementById('vulnDetailCVE').textContent;
 
-    if (vulnId && typeof createTicketFromVuln === 'function') {
-        closeVulnDetails();
-        createTicketFromVuln(vulnId, vulnName);
+    if (!vulnId) {
+        alert('Vulnerability ID not found');
+        return;
+    }
+
+    // Get vulnerability details for auto-population
+    const severityElement = document.getElementById('vulnDetailSeverity');
+    const targetElement = document.getElementById('vulnDetailTarget');
+    const portElement = document.getElementById('vulnDetailPort');
+    const remediationElement = document.getElementById('vulnDetailRemediation');
+    const cvssElement = document.getElementById('vulnDetailCVSS');
+
+    // Extract text content, handling badge HTML
+    const severityText = severityElement.textContent.trim();
+    const target = targetElement ? targetElement.textContent : 'Unknown';
+    const port = portElement ? portElement.textContent : 'N/A';
+    const remediation = remediationElement ? remediationElement.textContent : '';
+    const cvss = cvssElement ? cvssElement.textContent : 'N/A';
+
+    // Map severity to priority
+    const priorityMap = {
+        'Critical': 'high',
+        'High': 'high',
+        'Medium': 'medium',
+        'Low': 'low',
+        'Info': 'low'
+    };
+    const priority = priorityMap[severityText] || 'medium';
+
+    // Build comprehensive description
+    let description = `Remediation required for vulnerability found on ${target}\n\n`;
+    description += `Vulnerability: ${vulnName}\n`;
+    if (vulnCVE) description += `${vulnCVE}\n`;
+    description += `Severity: ${severityText}\n`;
+    description += `CVSS Score: ${cvss}\n`;
+    description += `Port/Service: ${port}\n\n`;
+
+    if (remediation && remediation !== 'No remediation available.') {
+        description += `Remediation Steps:\n${remediation}`;
     } else {
-        console.error('Create ticket function not available or vuln ID missing');
+        description += `Please review and remediate this vulnerability according to security best practices.`;
+    }
+
+    // Show loading state on button
+    const button = document.getElementById('btnCreateTicketFromVuln') || event.target;
+    const originalText = button.innerHTML;
+    button.disabled = true;
+    button.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Creating Ticket...';
+
+    try {
+        // Create ticket via new endpoint
+        const response = await fetch('/api/tickets/create-from-vuln', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                title: `Fix: ${vulnName}`,
+                description: description,
+                priority: priority,
+                status: 'open',
+                vuln_instance_id: parseInt(vulnId)
+            })
+        });
+
+        if (response.ok) {
+            const result = await response.json();
+
+            // Show success state briefly
+            button.innerHTML = '<i class="fas fa-check"></i> Created!';
+            button.classList.remove('btn-warning');
+            button.classList.add('btn-success');
+
+            // Show success notification
+            const ticketId = result.ticket_id;
+            const ticketTitle = result.ticket.title;
+
+            // Create a temporary success notification
+            const notification = document.createElement('div');
+            notification.style.cssText = `
+                position: fixed;
+                top: 20px;
+                right: 20px;
+                background: var(--success-green);
+                color: white;
+                padding: 1rem 1.5rem;
+                border-radius: 0.5rem;
+                box-shadow: 0 4px 6px rgba(0,0,0,0.3);
+                z-index: 3000;
+                max-width: 400px;
+                animation: slideIn 0.3s ease-out;
+            `;
+            notification.innerHTML = `
+                <div style="display: flex; align-items: start; gap: 1rem;">
+                    <i class="fas fa-check-circle" style="font-size: 1.5rem; margin-top: 0.25rem;"></i>
+                    <div style="flex: 1;">
+                        <strong style="display: block; margin-bottom: 0.5rem;">Ticket Created Successfully!</strong>
+                        <div style="font-size: 0.875rem; opacity: 0.9;">
+                            Ticket #${ticketId}: ${ticketTitle.substring(0, 50)}${ticketTitle.length > 50 ? '...' : ''}
+                        </div>
+                        <a href="#" onclick="event.preventDefault(); showSection('tickets'); document.getElementById('vulnDetailsModal').classList.add('hidden');" 
+                           style="color: white; text-decoration: underline; font-size: 0.875rem; display: inline-block; margin-top: 0.5rem;">
+                            View Tickets →
+                        </a>
+                    </div>
+                    <button onclick="this.parentElement.parentElement.remove()" 
+                            style="background: none; border: none; color: white; cursor: pointer; font-size: 1.25rem; padding: 0;">
+                        ×
+                    </button>
+                </div>
+            `;
+            document.body.appendChild(notification);
+
+            // Auto-remove notification after 5 seconds
+            setTimeout(() => {
+                if (notification.parentElement) {
+                    notification.style.animation = 'slideOut 0.3s ease-out';
+                    setTimeout(() => notification.remove(), 300);
+                }
+            }, 5000);
+
+            // Reset button after 2 seconds
+            setTimeout(() => {
+                button.innerHTML = originalText;
+                button.disabled = false;
+                button.classList.remove('btn-success');
+                button.classList.add('btn-warning');
+            }, 2000);
+
+        } else {
+            const error = await response.json();
+            throw new Error(error.error || 'Failed to create ticket');
+        }
+    } catch (error) {
+        console.error('Error creating ticket:', error);
+
+        // Show error state
+        button.innerHTML = '<i class="fas fa-exclamation-triangle"></i> Failed';
+        button.classList.remove('btn-warning');
+        button.classList.add('btn-danger');
+
+        alert(`Failed to create ticket: ${error.message}`);
+
+        // Reset button after 2 seconds
+        setTimeout(() => {
+            button.innerHTML = originalText;
+            button.disabled = false;
+            button.classList.remove('btn-danger');
+            button.classList.add('btn-warning');
+        }, 2000);
     }
 };

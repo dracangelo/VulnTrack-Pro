@@ -189,6 +189,24 @@ class ScanManager:
                         vuln_manager.process_scan_results(scan_id)
                     except Exception as e:
                         print(f"Error processing vulnerabilities: {e}")
+                    
+                    # Process Asset Inventory
+                    try:
+                        from api.services.asset_inventory_service import AssetInventoryService
+                        asset_service = AssetInventoryService()
+                        asset_count = asset_service.process_scan_results(scan_id)
+                        print(f"Asset inventory updated: {asset_count} assets processed")
+                    except Exception as e:
+                        print(f"Error processing asset inventory: {e}")
+                    
+                    # Enrich Vulnerabilities with CVE Data
+                    try:
+                        from api.services.vuln_enrichment_service import VulnEnrichmentService
+                        enrichment_service = VulnEnrichmentService()
+                        enriched_count = enrichment_service.auto_enrich_scan_results(scan_id)
+                        print(f"Vulnerability enrichment completed: {enriched_count} vulnerabilities enriched")
+                    except Exception as e:
+                        print(f"Error enriching vulnerabilities: {e}")
 
                     # Auto-generate HTML Report
                     try:
@@ -198,7 +216,18 @@ class ScanManager:
                             scan.report_html = report_content
                             db.session.commit()
                     except Exception as e:
-                        print(f"Error generating report: {e}")
+                        print(f"Error generating HTML report: {e}")
+                    
+                    # Auto-generate PDF Report
+                    try:
+                        from api.services.report_generator import ReportGenerator
+                        pdf_content = ReportGenerator.generate_pdf_report(scan_id)
+                        if pdf_content:
+                            scan.report_pdf = pdf_content
+                            db.session.commit()
+                            print(f"PDF report generated successfully for scan {scan_id}")
+                    except Exception as e:
+                        print(f"Error generating PDF report: {e}")
                 
             except Exception as e:
                 print(f"Scan error: {e}")

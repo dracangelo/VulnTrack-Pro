@@ -117,3 +117,66 @@ def bind_vulns(id):
             
     db.session.commit()
     return jsonify({'message': 'Vulnerabilities bound to ticket'})
+
+@ticket_bp.route('/create-from-vuln', methods=['POST'])
+def create_ticket_from_vuln():
+    """
+    Create a ticket and automatically bind a vulnerability instance.
+    One-click ticket creation from vulnerability details.
+    
+    Expects:
+    - title: Ticket title
+    - description: Ticket description
+    - priority: Ticket priority (high, medium, low)
+    - status: Ticket status (default: open)
+    - vuln_instance_id: ID of the vulnerability instance to bind
+    - assignee_id: Optional assignee ID
+    """
+    data = request.get_json()
+    
+    # Validate required fields
+    if not data or 'title' not in data or 'vuln_instance_id' not in data:
+        return jsonify({'error': 'title and vuln_instance_id are required'}), 400
+    
+    # Verify vulnerability instance exists
+    vuln_instance = VulnerabilityInstance.query.get(data['vuln_instance_id'])
+    if not vuln_instance:
+        return jsonify({'error': 'Vulnerability instance not found'}), 404
+    
+    # Create ticket
+    new_ticket = Ticket(
+        title=data['title'],
+        description=data.get('description'),
+        priority=data.get('priority', 'medium'),
+        status=data.get('status', 'open'),
+        assignee_id=data.get('assignee_id')
+    )
+    db.session.add(new_ticket)
+    db.session.flush()  # Get the ticket ID before commit
+    
+    # Bind vulnerability to ticket
+    new_ticket.vulnerabilities.append(vuln_instance)
+    
+    db.session.commit()
+    
+    # Log activity
+    from api.services.activity_service import ActivityService
+    ActivityService.log_activity(
+        user_id=data.get('user_id'),
+        action='create_ticket_from_vuln',
+        target_type='Ticket',
+        target_id=new_ticket.id,
+        details=f"Created ticket from vulnerability: {new_ticket.title}"
+    )
+    
+    return jsonify({
+        'message': 'Ticket created and vulnerability bound successfully',
+        'ticket_id': new_ticket.id,
+        'ticket': {
+            'id': new_ticket.id,
+            'title': new_ticket.title,
+            'status': new_ticket.status,
+            'priority': new_ticket.priority,
+            'vuln_count': len(new_ticket.vulnerabilities)
+        }
+    }), 201

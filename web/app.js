@@ -287,6 +287,12 @@ document.addEventListener('DOMContentLoaded', () => {
                 }
             });
 
+            socket.on('scan_log', (data) => {
+                if (data.scan_id === currentScanId) {
+                    addLogEntry(data.message, 'RAW');
+                }
+            });
+
             socket.on('disconnect', () => {
                 console.log('WebSocket disconnected');
             });
@@ -397,11 +403,20 @@ document.addEventListener('DOMContentLoaded', () => {
 
         const logLine = document.createElement('div');
         logLine.className = 'log-line';
-        logLine.innerHTML = `
-            <span class="log-timestamp">[${timestamp}]</span>
-            <span class="log-level-${level}">[${level}]</span>
-            <span>${message}</span>
-        `;
+
+        if (level === 'RAW') {
+            logLine.style.fontFamily = 'monospace';
+            logLine.style.whiteSpace = 'pre-wrap';
+            logLine.style.color = '#a0aec0';
+            logLine.style.fontSize = '0.85rem';
+            logLine.innerHTML = `<span>${message}</span>`;
+        } else {
+            logLine.innerHTML = `
+                <span class="log-timestamp">[${timestamp}]</span>
+                <span class="log-level-${level}">[${level}]</span>
+                <span>${message}</span>
+            `;
+        }
 
         logContainer.appendChild(logLine);
         logContainer.scrollTop = logContainer.scrollHeight;
@@ -622,7 +637,7 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     }
 
-    window.clearHostSelection = function() {
+    window.clearHostSelection = function () {
         fetchStats(null);
     };
 
@@ -698,7 +713,7 @@ document.addEventListener('DOMContentLoaded', () => {
                         },
                         tooltip: {
                             callbacks: {
-                                label: function(context) {
+                                label: function (context) {
                                     const label = context.label || '';
                                     const value = context.parsed || 0;
                                     const total = context.dataset.data.reduce((a, b) => a + b, 0);
@@ -726,10 +741,10 @@ document.addEventListener('DOMContentLoaded', () => {
             const ids = data.top_vulnerable_hosts.map(h => h.id);
 
             // Highlight selected host with different color
-            const backgroundColors = ids.map(id => 
+            const backgroundColors = ids.map(id =>
                 (targetId && id === targetId) ? 'rgba(16, 185, 129, 0.8)' : 'rgba(239, 68, 68, 0.8)'
             );
-            const borderColors = ids.map(id => 
+            const borderColors = ids.map(id =>
                 (targetId && id === targetId) ? '#10B981' : '#EF4444'
             );
 
@@ -1383,18 +1398,42 @@ function toggleMobileMenu() {
     const overlay = document.querySelector('.mobile-overlay');
     sidebar.classList.toggle('mobile-open');
     overlay.classList.toggle('active');
+
+    // Toggle hamburger animation
+    const hamburger = document.querySelector('.hamburger');
+    if (hamburger) {
+        hamburger.classList.toggle('active');
+    }
 }
 
 function closeMobileMenu() {
     const sidebar = document.querySelector('.sidebar');
     const overlay = document.querySelector('.mobile-overlay');
+    const hamburger = document.querySelector('.hamburger');
+
     sidebar.classList.remove('mobile-open');
     overlay.classList.remove('active');
+
+    if (hamburger) {
+        hamburger.classList.remove('active');
+    }
 }
 
-// Close mobile menu when clicking on nav items
-document.addEventListener('DOMContentLoaded', () => {
+// Initialize mobile menu on page load
+function initMobileMenu() {
+    const menuToggle = document.getElementById('mobileMenuToggle');
+    const overlay = document.getElementById('mobileOverlay');
     const navItems = document.querySelectorAll('.nav-item');
+
+    if (menuToggle) {
+        menuToggle.addEventListener('click', toggleMobileMenu);
+    }
+
+    if (overlay) {
+        overlay.addEventListener('click', closeMobileMenu);
+    }
+
+    // Close menu when nav item clicked on mobile
     navItems.forEach(item => {
         item.addEventListener('click', () => {
             if (window.innerWidth <= 768) {
@@ -1402,4 +1441,14 @@ document.addEventListener('DOMContentLoaded', () => {
             }
         });
     });
-});
+
+    // Close menu on escape key
+    document.addEventListener('keydown', (e) => {
+        if (e.key === 'Escape' && window.innerWidth <= 768) {
+            closeMobileMenu();
+        }
+    });
+}
+
+// Initialize on page load
+document.addEventListener('DOMContentLoaded', initMobileMenu);

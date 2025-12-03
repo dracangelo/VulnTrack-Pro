@@ -13,89 +13,157 @@
                 style="background: none; border: none; color: var(--text-secondary); cursor: pointer; font-size: 1.5rem;">&times;</button>
         </div>
 
-        <!-- Severity and CVSS Score -->
-        <div
-            style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 1rem; margin-bottom: 1.5rem;">
-            <div style="background: var(--bg-secondary); padding: 1rem; border-radius: 0.5rem;">
-                <div style="font-size: 0.75rem; color: var(--text-secondary); margin-bottom: 0.5rem;">SEVERITY</div>
-                <div id="vulnDetailSeverity"></div>
-            </div>
-            <div style="background: var(--bg-secondary); padding: 1rem; border-radius: 0.5rem;">
-                <div style="font-size: 0.75rem; color: var(--text-secondary); margin-bottom: 0.5rem;">CVSS SCORE</div>
-                <div id="vulnDetailCVSS" style="font-size: 1.5rem; font-weight: 700; color: var(--accent-cyan);"></div>
-            </div>
-            <div style="background: var(--bg-secondary); padding: 1rem; border-radius: 0.5rem;">
-                <div style="font-size: 0.75rem; color: var(--text-secondary); margin-bottom: 0.5rem;">STATUS</div>
-                <div id="vulnDetailStatus"></div>
-            </div>
-            <div style="background: var(--bg-secondary); padding: 1rem; border-radius: 0.5rem;">
-                <div style="font-size: 0.75rem; color: var(--text-secondary); margin-bottom: 0.5rem;">DETECTED</div>
-                <div id="vulnDetailDetected" style="color: var(--text-primary);"></div>
-            </div>
+        <!-- Tabs -->
+        <div class="tabs" style="border-bottom: 1px solid var(--border-color); margin-bottom: 1.5rem;">
+            <button class="tab-btn active" onclick="switchVulnTab('details')" data-tab="details">Details</button>
+            <button class="tab-btn" onclick="switchVulnTab('exploits')" data-tab="exploits">Exploits</button>
+            <button class="tab-btn" onclick="switchVulnTab('nuclei')" data-tab="nuclei">Nuclei</button>
         </div>
 
-        <!-- Target and Port Info -->
-        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; margin-bottom: 1.5rem;">
-            <div>
-                <h4 style="font-size: 0.875rem; color: var(--text-secondary); margin-bottom: 0.5rem;">TARGET</h4>
-                <p id="vulnDetailTarget" style="color: var(--text-primary);"></p>
+        <!-- Details Tab Content -->
+        <div id="vulnTab-details" class="tab-content active">
+
+            <!-- Severity and CVSS Score -->
+            <div
+                style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 1rem; margin-bottom: 1.5rem;">
+                <div style="background: var(--bg-secondary); padding: 1rem; border-radius: 0.5rem;">
+                    <div style="font-size: 0.75rem; color: var(--text-secondary); margin-bottom: 0.5rem;">SEVERITY</div>
+                    <div id="vulnDetailSeverity"></div>
+                </div>
+                <div style="background: var(--bg-secondary); padding: 1rem; border-radius: 0.5rem;">
+                    <div style="font-size: 0.75rem; color: var(--text-secondary); margin-bottom: 0.5rem;">CVSS SCORE
+                    </div>
+                    <div id="vulnDetailCVSS" style="font-size: 1.5rem; font-weight: 700; color: var(--accent-cyan);">
+                    </div>
+                </div>
+                <div style="background: var(--bg-secondary); padding: 1rem; border-radius: 0.5rem;">
+                    <div style="font-size: 0.75rem; color: var(--text-secondary); margin-bottom: 0.5rem;">STATUS</div>
+                    <div id="vulnDetailStatus"></div>
+                </div>
+                <div style="background: var(--bg-secondary); padding: 1rem; border-radius: 0.5rem;">
+                    <div style="font-size: 0.75rem; color: var(--text-secondary); margin-bottom: 0.5rem;">DETECTED</div>
+                    <div id="vulnDetailDetected" style="color: var(--text-primary);"></div>
+                </div>
             </div>
-            <div>
-                <h4 style="font-size: 0.875rem; color: var(--text-secondary); margin-bottom: 0.5rem;">PORT / SERVICE
+
+            <!-- Target and Port Info -->
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; margin-bottom: 1.5rem;">
+                <div>
+                    <h4 style="font-size: 0.875rem; color: var(--text-secondary); margin-bottom: 0.5rem;">TARGET</h4>
+                    <p id="vulnDetailTarget" style="color: var(--text-primary);"></p>
+                </div>
+                <div>
+                    <h4 style="font-size: 0.875rem; color: var(--text-secondary); margin-bottom: 0.5rem;">PORT / SERVICE
+                    </h4>
+                    <p id="vulnDetailPort" style="color: var(--text-primary);"></p>
+                </div>
+            </div>
+
+            <!-- Description -->
+            <div style="margin-bottom: 1.5rem;">
+                <h4 style="font-size: 0.875rem; color: var(--text-secondary); margin-bottom: 0.5rem;">DESCRIPTION</h4>
+                <p id="vulnDetailDescription" style="color: var(--text-primary); line-height: 1.6;"></p>
+            </div>
+
+            <!-- Evidence (if available) -->
+            <div id="vulnDetailEvidenceSection" style="margin-bottom: 1.5rem; display: none;">
+                <h4 style="font-size: 0.875rem; color: var(--text-secondary); margin-bottom: 0.5rem;">EVIDENCE</h4>
+                <div class="log-output" style="max-height: 200px;">
+                    <pre id="vulnDetailEvidence" style="margin: 0; white-space: pre-wrap; word-wrap: break-word;"></pre>
+                </div>
+            </div>
+
+            <!-- Remediation -->
+            <div id="vulnDetailRemediationSection" style="margin-bottom: 1.5rem; display: none;">
+                <h4 style="font-size: 0.875rem; color: var(--text-secondary); margin-bottom: 0.5rem;">REMEDIATION</h4>
+                <p id="vulnDetailRemediation" style="color: var(--text-primary); line-height: 1.6;"></p>
+            </div>
+
+            <!-- Status Update Section -->
+            <div style="border-top: 1px solid var(--border-color); padding-top: 1.5rem;">
+                <h4 style="font-size: 0.875rem; color: var(--text-secondary); margin-bottom: 1rem;">UPDATE STATUS</h4>
+                <form id="vulnStatusUpdateForm" onsubmit="updateVulnStatus(event)">
+                    <input type="hidden" id="vulnDetailInstanceId">
+                    <div class="form-group">
+                        <label class="form-label">New Status</label>
+                        <select class="form-select" id="vulnNewStatus" required>
+                            <option value="open">Open</option>
+                            <option value="fixed">Fixed</option>
+                            <option value="false_positive">False Positive</option>
+                            <option value="accepted_risk">Accepted Risk</option>
+                        </select>
+                    </div>
+                    <div class="form-group" id="falsePositiveReasonGroup" style="display: none;">
+                        <label class="form-label">Reason (for False Positive)</label>
+                        <textarea class="form-textarea" id="vulnFalsePositiveReason" rows="3"></textarea>
+                    </div>
+                    <div class="flex gap-4" style="justify-content: space-between; align-items: center;">
+                        <div>
+                            <button type="button" class="btn btn-secondary" onclick="closeVulnDetails()">Cancel</button>
+                            <button type="submit" class="btn btn-primary">Update Status</button>
+                        </div>
+                        <button type="button" class="btn btn-warning" id="btnCreateTicketFromVuln"
+                            onclick="triggerCreateTicket()">
+                            <i class="fas fa-ticket-alt"></i> Create Ticket
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div> <!-- End Details Tab -->
+
+        <!-- Exploits Tab Content -->
+        <div id="vulnTab-exploits" class="tab-content hidden">
+            <div style="margin-bottom: 1.5rem;">
+                <h4 style="font-size: 0.875rem; color: var(--text-secondary); margin-bottom: 0.5rem;">SEARCH EXPLOITS
                 </h4>
-                <p id="vulnDetailPort" style="color: var(--text-primary);"></p>
+                <div style="display: flex; gap: 0.5rem; margin-bottom: 1rem;">
+                    <input type="text" id="exploitSearchQuery" class="form-input" placeholder="Search Exploit-DB...">
+                    <button onclick="searchExploits()" class="btn btn-primary">Search</button>
+                </div>
+                <div id="exploitResults" style="max-height: 300px; overflow-y: auto; margin-bottom: 1.5rem;">
+                    <!-- Results will be populated here -->
+                </div>
             </div>
-        </div>
 
-        <!-- Description -->
-        <div style="margin-bottom: 1.5rem;">
-            <h4 style="font-size: 0.875rem; color: var(--text-secondary); margin-bottom: 0.5rem;">DESCRIPTION</h4>
-            <p id="vulnDetailDescription" style="color: var(--text-primary); line-height: 1.6;"></p>
-        </div>
-
-        <!-- Evidence (if available) -->
-        <div id="vulnDetailEvidenceSection" style="margin-bottom: 1.5rem; display: none;">
-            <h4 style="font-size: 0.875rem; color: var(--text-secondary); margin-bottom: 0.5rem;">EVIDENCE</h4>
-            <div class="log-output" style="max-height: 200px;">
-                <pre id="vulnDetailEvidence" style="margin: 0; white-space: pre-wrap; word-wrap: break-word;"></pre>
-            </div>
-        </div>
-
-        <!-- Remediation -->
-        <div id="vulnDetailRemediationSection" style="margin-bottom: 1.5rem; display: none;">
-            <h4 style="font-size: 0.875rem; color: var(--text-secondary); margin-bottom: 0.5rem;">REMEDIATION</h4>
-            <p id="vulnDetailRemediation" style="color: var(--text-primary); line-height: 1.6;"></p>
-        </div>
-
-        <!-- Status Update Section -->
-        <div style="border-top: 1px solid var(--border-color); padding-top: 1.5rem;">
-            <h4 style="font-size: 0.875rem; color: var(--text-secondary); margin-bottom: 1rem;">UPDATE STATUS</h4>
-            <form id="vulnStatusUpdateForm" onsubmit="updateVulnStatus(event)">
-                <input type="hidden" id="vulnDetailInstanceId">
+            <div style="border-top: 1px solid var(--border-color); padding-top: 1.5rem;">
+                <h4 style="font-size: 0.875rem; color: var(--text-secondary); margin-bottom: 0.5rem;">RUN CUSTOM POC
+                </h4>
                 <div class="form-group">
-                    <label class="form-label">New Status</label>
-                    <select class="form-select" id="vulnNewStatus" required>
-                        <option value="open">Open</option>
-                        <option value="fixed">Fixed</option>
-                        <option value="false_positive">False Positive</option>
-                        <option value="accepted_risk">Accepted Risk</option>
+                    <label class="form-label">Script Type</label>
+                    <select id="pocScriptType" class="form-select">
+                        <option value="python">Python 3</option>
+                        <option value="bash">Bash</option>
                     </select>
                 </div>
-                <div class="form-group" id="falsePositiveReasonGroup" style="display: none;">
-                    <label class="form-label">Reason (for False Positive)</label>
-                    <textarea class="form-textarea" id="vulnFalsePositiveReason" rows="3"></textarea>
+                <div class="form-group">
+                    <label class="form-label">Script Content</label>
+                    <textarea id="pocScriptContent" class="form-textarea" rows="10"
+                        style="font-family: monospace;"></textarea>
                 </div>
-                <div class="flex gap-4" style="justify-content: space-between; align-items: center;">
-                    <div>
-                        <button type="button" class="btn btn-secondary" onclick="closeVulnDetails()">Cancel</button>
-                        <button type="submit" class="btn btn-primary">Update Status</button>
-                    </div>
-                    <button type="button" class="btn btn-warning" id="btnCreateTicketFromVuln"
-                        onclick="triggerCreateTicket()">
-                        <i class="fas fa-ticket-alt"></i> Create Ticket
-                    </button>
+                <button onclick="runPoC()" class="btn btn-danger">
+                    <i class="fas fa-radiation"></i> Run PoC
+                </button>
+
+                <div id="pocOutput" class="log-output hidden" style="margin-top: 1rem;">
+                    <pre id="pocOutputContent"></pre>
                 </div>
-            </form>
+            </div>
+        </div>
+
+        <!-- Nuclei Tab Content -->
+        <div id="vulnTab-nuclei" class="tab-content hidden">
+            <h4 style="font-size: 0.875rem; color: var(--text-secondary); margin-bottom: 0.5rem;">MATCHING TEMPLATES
+            </h4>
+            <div id="nucleiTemplatesList">
+                <!-- Templates will be populated here -->
+            </div>
+        </div>
+
+        <!-- Status Update Section (Always visible or moved to Details? Let's keep it in Details for now, or make it global footer) -->
+        <!-- Moving Status Update back to Details tab for cleaner UI -->
+        <div style="border-top: 1px solid var(--border-color); padding-top: 1.5rem; display: none;">
+            <!-- Hidden here, will be inside details tab -->
         </div>
     </div>
 </div>
+```

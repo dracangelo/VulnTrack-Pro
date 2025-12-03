@@ -28,6 +28,14 @@ class NmapRealtimeParser:
         if '-v' not in arguments:
             arguments += ' -v'
         
+        # Add service version detection if not present
+        if '-sV' not in arguments:
+            arguments += ' -sV'
+        
+        # Add OS detection if not present (requires root)
+        if '-O' not in arguments:
+            arguments += ' -O'
+        
         # Build command
         cmd = ['nmap'] + arguments.split() + [target]
         
@@ -68,6 +76,12 @@ class NmapRealtimeParser:
             # Parse final results
             results = self._parse_final_results(scan_data['raw_output'])
             
+            # Extract OS information
+            results['os_detection'] = self._parse_os_detection(scan_data['raw_output'])
+            
+            # Extract CPE identifiers
+            results['cpe_list'] = self._extract_cpe_identifiers(scan_data['raw_output'])
+            
             return results
             
         except Exception as e:
@@ -79,6 +93,9 @@ class NmapRealtimeParser:
     def _parse_line(self, line, scan_data, scan_id, app_context):
         """Parse a single line of Nmap output and emit updates"""
         
+        # Emit raw log for every line
+        self._emit_log(scan_id, line.strip(), app_context)
+
         # Progress percentage: "About 45.67% done"
         progress_match = re.search(r'About\s+([\d.]+)%\s+done', line)
         if progress_match:
@@ -196,12 +213,137 @@ class NmapRealtimeParser:
             'elapsed': elapsed,
             'timestamp': datetime.utcnow().isoformat()
         }, room=f'scan_{scan_id}', namespace='/scan-progress')
+
+    def _emit_log(self, scan_id, message, app_context):
+        """Emit raw log message"""
+        from api.extensions import socketio
+        
+        if not message:
+            return
+
+        socketio.emit('scan_log', {
+            'scan_id': scan_id,
+            'message': message,
+            'timestamp': datetime.utcnow().isoformat()
+        }, room=f'scan_{scan_id}', namespace='/scan-progress')
     
     def cancel(self):
         """Cancel the running scan"""
         self.cancelled = True
         if self.process:
             self.process.terminate()
+    
+    def _parse_os_detection(self, raw_output):
+        """
+        Extract OS information from Nmap output
+        Returns dict with OS name, vendor, family, accuracy, and CPE
+        """
+        os_info = {
+            'name': None,
+            'vendor': None,
+            'family': None,
+            'accuracy': 0,
+            'cpe': None
+        }
+        
+        # Look for OS detection results
+        # Pattern: "OS details: Linux 3.2 - 4.9"
+        os_match = re.search(r'OS details:\s*(.+)', raw_output)
+        if os_match:
+            os_info['name'] = os_match.group(1).strip()
+        
+        # Pattern: "Running: Linux 3.X|4.X"
+        running_match = re.search(r'Running:\s*(.+)', raw_output)
+        if running_match:
+            running = running_match.group(1).strip()
+            if 'Linux' in running:
+                os_info['vendor'] = 'Linux'
+                os_info['family'] = 'Linux'
+            elif 'Windows' in running:
+                os_info['vendor'] = 'Microsoft'
+                os_info['family'] = 'Windows'
+            elif 'BSD' in running:
+                os_info['vendor'] = 'BSD'
+                os_info['family'] = 'BSD'
+        
+        # Extract accuracy from aggressive OS guesses
+        # Pattern: "Aggressive OS guesses: Linux 3.10 - 4.11 (95%)"
+        accuracy_match = re.search(r'Aggressive OS guesses:\s*([^(]+)\((\d+)%\)', raw_output)
+        if accuracy_match:
+            if not os_info['name']:
+                os_info['name'] = accuracy_match.group(1).strip()
+            os_info['accuracy'] = int(accuracy_match.group(2))
+        
+        # Extract OS CPE
+        # Pattern: "OS CPE: cpe:/o:linux:linux_kernel:3"
+        os_cpe_match = re.search(r'OS CPE:\s*(cpe:[^\s]+)', raw_output)
+        if os_cpe_match:
+            os_info['cpe'] = os_cpe_match.group(1)
+        
+        return os_info if os_info['name'] else None
+    
+    def _extract_cpe_identifiers(self, raw_output):
+        """
+        Extract all CPE identifiers from Nmap output
+        Returns list of CPE strings
+        """
+        cpe_list = []
+        
+        # Find all CPE patterns
+        cpe_matches = re.findall(r'(cpe:[^\s]+)', raw_output)
+        
+        # Deduplicate and return
+        return list(set(cpe_matches))
+    
+    def _parse_service_details(self, raw_output):
+        """
+        Extract detailed service information including version and CPE
+        Returns list of services with enhanced details
+        """
+        services = []
+        
+        # Split by host blocks
+        host_blocks = re.split(r'Nmap scan report for ', raw_output)[1:]
+        
+        for block in host_blocks:
+            lines = block.split('\n')
+            
+            for line in lines:
+                # Enhanced port pattern with version info
+                # Pattern: "22/tcp   open  ssh     OpenSSH 7.4 (protocol 2.0)"
+                port_match = re.search(
+                    r'(\d+)/(tcp|udp)\s+(\w+)\s+(\S+)(?:\s+(.+?))?(?:\s+\((.+?)\))?$',
+                    line
+                )
+                
+                if port_match:
+                    service_info = {
+                        'port': int(port_match.group(1)),
+                        'protocol': port_match.group(2),
+                        'state': port_match.group(3),
+                        'service': port_match.group(4),
+                        'product': None,
+                        'version': None,
+                        'extrainfo': None
+                    }
+                    
+                    # Parse version details if present
+                    if port_match.group(5):
+                        version_str = port_match.group(5).strip()
+                        # Try to extract product and version
+                        # Pattern: "OpenSSH 7.4"
+                        version_parts = version_str.split()
+                        if len(version_parts) >= 1:
+                            service_info['product'] = version_parts[0]
+                        if len(version_parts) >= 2:
+                            service_info['version'] = version_parts[1]
+                    
+                    if port_match.group(6):
+                        service_info['extrainfo'] = port_match.group(6).strip()
+                    
+                    services.append(service_info)
+        
+        return services
     
     def normalize_results(self, scan_results):
         """Normalize scan results to match expected format"""
@@ -215,9 +357,9 @@ class NmapRealtimeParser:
                         'protocol': port['protocol'],
                         'state': port['state'],
                         'service': port['service'],
-                        'product': '',
-                        'version': '',
-                        'cpe': '',
+                        'product': port.get('product', ''),
+                        'version': port.get('version', ''),
+                        'cpe': port.get('cpe', ''),
                         'script': {}
                     })
         

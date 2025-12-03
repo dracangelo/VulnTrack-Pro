@@ -52,6 +52,7 @@ def get_instances():
     Get vulnerability instances with comprehensive filtering.
     Query params:
     - target_id: Filter by target
+    - group_id: Filter by target group
     - severity: Filter by severity (Critical, High, Medium, Low, Info)
     - status: Filter by status (open, fixed, false_positive, accepted_risk)
     - port: Filter by port number
@@ -59,17 +60,23 @@ def get_instances():
     - search: Search in vulnerability name
     """
     target_id = request.args.get('target_id')
+    group_id = request.args.get('group_id')
     severity = request.args.get('severity')
     status = request.args.get('status', 'open')  # Default to open
     port = request.args.get('port')
     protocol = request.args.get('protocol')
     search = request.args.get('search')
     
-    query = VulnerabilityInstance.query.join(Vulnerability)
+    # Join with Vulnerability and Target to enable filtering by group
+    from api.models.target import Target
+    query = VulnerabilityInstance.query.join(Vulnerability).join(Target)
     
     # Apply filters
     if target_id:
         query = query.filter(VulnerabilityInstance.target_id == target_id)
+    
+    if group_id:
+        query = query.filter(Target.group_id == group_id)
     
     if severity:
         query = query.filter(Vulnerability.severity == severity)

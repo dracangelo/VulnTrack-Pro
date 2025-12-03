@@ -1,6 +1,6 @@
 from flask import Flask, jsonify, send_from_directory
 from flask_cors import CORS
-from flask_talisman import Talisman
+# from flask_talisman import Talisman
 from api.config import Config
 import logging
 
@@ -23,14 +23,15 @@ def create_app(config_class=Config):
     CORS(app)
     
     # Initialize Talisman (Security Headers)
-    # Disable HTTPS force for dev, allow inline scripts/styles for Tailwind/Chart.js
-    csp = {
-        'default-src': "'self'",
-        'script-src': ["'self'", "'unsafe-inline'", "https://cdn.tailwindcss.com", "https://cdn.jsdelivr.net", "https://cdn.socket.io"],
-        'style-src': ["'self'", "'unsafe-inline'", "https://cdn.jsdelivr.net", "https://cdnjs.cloudflare.com"],
-        'font-src': ["'self'", "https://cdnjs.cloudflare.com"],
-    }
-    Talisman(app, force_https=False, content_security_policy=csp)
+    # Uncomment when flask-talisman is installed
+    # csp = {
+    #     'default-src': ["'self'"],
+    #     'script-src': ["'self'", "'unsafe-inline'", 'cdn.jsdelivr.net', 'cdnjs.cloudflare.com'],
+    #     'style-src': ["'self'", "'unsafe-inline'", 'cdnjs.cloudflare.com'],
+    #     'img-src': ["'self'", 'data:'],
+    #     'font-src': ["'self'", 'cdnjs.cloudflare.com'],
+    # }
+    # Talisman(app, force_https=False, content_security_policy=csp)
     
     # Register Blueprints
     from api.routes.scan_routes import scan_bp
@@ -42,21 +43,35 @@ def create_app(config_class=Config):
     from api.routes.vuln_routes import vuln_bp
 
     from api.routes.openvas_routes import openvas_bp
+    from api.routes.report_routes import report_bp
+    from api.routes.exploit_routes import exploit_bp
     from api.routes.schedule_routes import schedule_bp
-
-    app.register_blueprint(scan_bp)
-    app.register_blueprint(report_bp)
-    app.register_blueprint(ticket_bp)
+    from api.routes.asset_routes import asset_bp
+    from api.routes.ml_routes import ml_bp
+    from api.routes.auth_routes import auth_bp
+    from api.routes.role_routes import role_bp
+    
     app.register_blueprint(target_bp)
-    app.register_blueprint(target_group_bp)
-    app.register_blueprint(user_bp)
+    app.register_blueprint(scan_bp)
     app.register_blueprint(vuln_bp)
-
-    app.register_blueprint(openvas_bp)
+    app.register_blueprint(user_bp)
     app.register_blueprint(schedule_bp)
+    app.register_blueprint(openvas_bp)
+    app.register_blueprint(target_group_bp)
+    app.register_blueprint(ticket_bp)
+    app.register_blueprint(report_bp)
+    app.register_blueprint(exploit_bp)
+    app.register_blueprint(asset_bp)
+    app.register_blueprint(ml_bp)
+    app.register_blueprint(auth_bp)
+    app.register_blueprint(role_bp)
     
     # Register WebSocket events
     from api import socket_events
+    
+    # Initialize OAuth
+    from api.services.oauth_service import OAuthService
+    OAuthService.init_app(app)
     
     # Initialize Scheduler Service
     from api.services.scheduler_service import SchedulerService

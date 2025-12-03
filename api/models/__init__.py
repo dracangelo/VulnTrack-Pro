@@ -4,3 +4,5 @@ from .scan import Scan
 from .vulnerability import Vulnerability, VulnerabilityInstance
 from .ticket import Ticket
 from .report import Report
+from .asset_inventory import AssetInventory
+from .role import Role, Permission, RolePermission

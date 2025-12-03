@@ -138,3 +138,37 @@ def download_scan_report_pdf(scan_id):
         return jsonify({'error': str(e)}), 500
     except Exception as e:
         return jsonify({'error': f'Internal error: {str(e)}'}), 500
+
+@report_bp.route('/scans/<int:scan_id>/download-pdf', methods=['GET'])
+def download_scan_pdf(scan_id):
+    """Download PDF report for a scan with database caching"""
+    scan = Scan.query.get_or_404(scan_id)
+    
+    # Check if PDF already exists in database
+    if scan.report_pdf:
+        pdf_data = scan.report_pdf
+    else:
+        # Generate PDF on-demand
+        pdf_data = ReportGenerator.generate_pdf_report(scan_id)
+        
+        if not pdf_data:
+            return jsonify({'error': 'Failed to generate PDF'}), 500
+        
+        # Store for future use
+        try:
+            scan.report_pdf = pdf_data
+            db.session.commit()
+        except Exception as e:
+            print(f"Error storing PDF: {e}")
+            # Continue anyway, we can still send the PDF
+    
+    # Send PDF file
+    target_name = scan.target.name if scan.target else 'unknown'
+    filename = f'scan_report_{scan_id}_{target_name}.pdf'.replace(' ', '_')
+    
+    return send_file(
+        io.BytesIO(pdf_data),
+        mimetype='application/pdf',
+        as_attachment=True,
+        download_name=filename
+    )

@@ -12,12 +12,16 @@
 
 <body>
     <!-- Mobile Menu Toggle -->
-    <button class="mobile-menu-toggle" onclick="toggleMobileMenu()" aria-label="Toggle menu">
-        <i class="fas fa-bars"></i>
+    <button class="mobile-menu-toggle" id="mobileMenuToggle" aria-label="Toggle menu">
+        <div class="hamburger">
+            <span></span>
+            <span></span>
+            <span></span>
+        </div>
     </button>
 
     <!-- Mobile Overlay -->
-    <div class="mobile-overlay" onclick="closeMobileMenu()"></div>
+    <div class="mobile-overlay" id="mobileOverlay"></div>
 
     <!-- Sidebar Navigation -->
     <aside class="sidebar">
@@ -317,6 +321,18 @@
                     <button class="btn btn-secondary" onclick="clearVulnFilters()">Clear Filters</button>
                 </div>
                 <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 1rem;">
+                    <div class="form-group" style="margin-bottom: 0;">
+                        <label class="form-label">Host</label>
+                        <select class="form-select" id="vulnHostFilter" onchange="applyVulnFilters()">
+                            <option value="">All Hosts</option>
+                        </select>
+                    </div>
+                    <div class="form-group" style="margin-bottom: 0;">
+                        <label class="form-label">Group</label>
+                        <select class="form-select" id="vulnGroupFilter" onchange="applyVulnFilters()">
+                            <option value="">All Groups</option>
+                        </select>
+                    </div>
                     <div class="form-group" style="margin-bottom: 0;">
                         <label class="form-label">Severity</label>
                         <select class="form-select" id="vulnSeverityFilter" onchange="applyVulnFilters()">

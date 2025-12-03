@@ -1,0 +1,277 @@
+Absolutely — here is a **clear, realistic, structured development timeline** for building **VulnTrack Pro** using the Hybrid architecture.
+It is broken into **phases, weekly milestones, and daily tasks**, optimized for solo development.
+
+---
+
+# 🚀 **VulnTrack Pro — Complete Development Timeline**
+
+Hybrid Architecture • Python • Flask API • React/HTML UI • Nmap • OpenVAS • SQLite/PostgreSQL
+
+---
+
+# 🗓️ **PHASE 1 — Foundation Setup (Week 1)**
+
+Goal: Project structure, environment, database schema, boilerplate code.
+
+### **Day 1**
+
+* Create project folders (done)
+* Initialize Git repository
+* Create `requirements.txt`
+* Set up virtual environment
+* Install Flask, SQLAlchemy, Alembic, Nmap python libraries
+
+### **Day 2**
+
+* Define database schema (DONE)
+* Implement SQLAlchemy models (skeletons)
+* Create Alembic migration
+* Initialize development DB
+
+### **Day 3**
+
+* Build Flask app factory (`api/app.py`)
+* Register blueprints (`scan_routes`, `report_routes`, `ticket_routes`)
+* Implement basic routes: health check, add target
+
+### **Day 4**
+
+* Implement CRUD for:
+
+  * Targets
+  * Target groups
+  * Users (simple)
+
+### **Day 5**
+
+* Build a simple HTML/JS frontend with:
+
+  * Add target form
+  * View target list
+* Setup Tailwind (optional)
+
+### **Weekend (Optional)**
+
+* Add JWT auth
+* Add API docs using Swagger (flasgger)
+
+---
+
+# 🗓️ **PHASE 2 — Scanner Integration (Week 2)**
+
+Goal: Make Nmap, OpenVAS, and custom scripts usable inside the app.
+
+### **Day 1**
+
+* Write Nmap wrapper (async)
+* Test Nmap scanning
+* Normalize Nmap results → DB format
+
+### **Day 2**
+
+* Implement OpenVAS connection logic
+* Write OpenVAS scan launcher
+* Store OpenVAS report IDs
+
+### **Day 3**
+
+* Build Custom Scanner loader system
+
+  * Run Python plug-ins
+  * Pass args
+  * Return JSON results
+
+### **Day 4**
+
+* Create unified **Scan Pipeline**:
+
+  * Receive scan request
+  * Pick scanner(s)
+  * Run scan async
+  * Parse & save output
+  * Return scan ID
+
+### **Day 5**
+
+* Create background task system:
+
+  * Celery OR Python threads
+* Create job status tracking table
+
+---
+
+# 🗓️ **PHASE 3 — Vulnerability Engine (Week 3)**
+
+Goal: Store, deduplicate, correlate vulnerabilities across scans.
+
+### **Day 1**
+
+* Parse Nmap vuln scripts
+* Create normalized vulnerability object
+* Insert into `Vulnerability` table
+
+### **Day 2**
+
+* Create `VulnerabilityInstance` mapping
+
+  * target_id
+  * vuln_id
+  * scan_id
+  * status
+
+### **Day 3**
+
+* Implement severity scoring (CVSS or custom)
+* Implement vuln categorization
+
+### **Day 4**
+
+* Build dashboards:
+
+  * Vulnerabilities by severity
+  * Most vulnerable hosts
+  * New vs. resolved vulnerabilities
+
+### **Day 5**
+
+* Build query filters:
+
+  * Filter by host
+  * Filter by severity
+  * Filter by group
+  * Search by name, port, protocol
+
+---
+
+# 🗓️ **PHASE 4 — Ticketing & Remediation Tracking (Week 4)**
+
+Goal: Let users track fixes and push tickets to external systems.
+
+### **Day 1**
+
+* Create ticket models
+* Create ticket routes (CRUD)
+
+### **Day 2**
+
+* Bind vulnerabilities → tickets
+* Add status transitions (Open, In Progress, Fixed)
+
+### **Day 3**
+
+* Add activity logs (who changed what)
+
+### **Day 4**
+
+* Integrate a simple email notification system
+* Optional: Slack or webhook alerts
+
+### **Day 5**
+
+* Build UI for:
+
+  * ticket list
+  * ticket detail
+  * attach vulnerabilities
+
+---
+
+# 🗓️ **PHASE 5 — Reporting & UX Polish (Week 5)**
+
+Goal: Produce clean PDF/HTML reports + improve frontend.
+
+### **Day 1**
+
+* Build HTML report template
+* Summary section
+* Target table
+* Vulnerability list
+
+### **Day 2**
+
+* Generate PDF using WeasyPrint or wkhtmltopdf
+
+### **Day 3**
+
+* Add report download endpoint
+* Auto-generate report after scan
+
+### **Day 4**
+
+* Improve dashboard UI:
+
+  * charts.js
+  * real-time scan updates
+  * log viewer
+
+### **Day 5**
+
+* Add theme/skin (cyberpunk optional)
+* Add animations and better layout
+
+---
+
+# 🗓️ **PHASE 6 — Hardening & Packaging (Week 6)**
+
+Goal: Make the product production-ready.
+
+### **Day 1**
+
+* Enable CORS
+* Set secure headers
+* Add rate limiting
+
+### **Day 2**
+
+* Add proper logging
+* Add error handling
+* Add input validation
+
+### **Day 3**
+
+* Containerize with Docker
+* Docker-compose includes:
+
+  * API
+  * Database
+  * Redis (if Celery used)
+
+### **Day 4**
+
+* Add unit tests
+* Add integration tests
+
+### **Day 5**
+
+* Final review
+* Prepare for v1 release
+* Create GitHub README + docs
+
+---
+
+# 🎉 **Total Time: 6 Weeks**
+
+But you can stretch or compress depending on your pace.
+
+---
+
+# 🔥 NEXT STEP
+
+We begin **Phase 1 — Week 1 — Day 1**.
+
+You already created the project structure.
+Now we continue with:
+
+### 👉 **Initialize Git + venv + install requirements**
+
+If you're ready, tell me:
+
+## **“Start Phase 1 Day 1”**
+
+And I’ll give exact commands.
+
+
+
+
+
+
