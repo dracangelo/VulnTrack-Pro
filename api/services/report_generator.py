@@ -1,7 +1,11 @@
 from flask import render_template
 from api.models.scan import Scan
 from api.models.vulnerability import VulnerabilityInstance
+from api.models.asset_inventory import AssetInventory
 from datetime import datetime
+import logging
+
+logger = logging.getLogger(__name__)
 
 class ReportGenerator:
     @staticmethod
@@ -9,9 +13,18 @@ class ReportGenerator:
         """Generate HTML report for a scan"""
         scan = Scan.query.get(scan_id)
         if not scan:
+            logger.error(f"Scan {scan_id} not found for report generation")
             return None
             
         vulns = VulnerabilityInstance.query.filter_by(scan_id=scan_id).all()
+        logger.info(f"Report for scan {scan_id}: Found {len(vulns)} vulnerability instances")
+        
+        # Get asset inventory for this scan
+        assets = AssetInventory.query.filter_by(
+            target_id=scan.target_id,
+            scan_id=scan_id
+        ).all()
+        logger.info(f"Report for scan {scan_id}: Found {len(assets)} assets")
         
         # Group vulnerabilities by severity
         vuln_by_severity = {
@@ -32,7 +45,9 @@ class ReportGenerator:
                              scan=scan, 
                              vulns=vulns,
                              vuln_by_severity=vuln_by_severity,
+                             assets=assets,
                              generated_at=datetime.utcnow())
+
 
     @staticmethod
     def generate_pdf_report(scan_id):
@@ -42,17 +57,23 @@ class ReportGenerator:
         """
         scan = Scan.query.get(scan_id)
         if not scan:
-            print(f"Scan {scan_id} not found")
+            logger.error(f"Scan {scan_id} not found for PDF generation")
             return None
             
         try:
             from weasyprint import HTML, CSS
             from weasyprint.text.fonts import FontConfiguration
         except ImportError as e:
-            print(f"WeasyPrint not installed: {e}")
+            logger.error(f"WeasyPrint not installed: {e}")
             return None
         
         vulns = VulnerabilityInstance.query.filter_by(scan_id=scan_id).all()
+        
+        # Get asset inventory for this scan
+        assets = AssetInventory.query.filter_by(
+            target_id=scan.target_id,
+            scan_id=scan_id
+        ).all()
         
         # Group vulnerabilities by severity
         vuln_by_severity = {
@@ -74,15 +95,18 @@ class ReportGenerator:
                                          scan=scan, 
                                          vulns=vulns,
                                          vuln_by_severity=vuln_by_severity,
+                                         assets=assets,
                                          generated_at=datetime.utcnow())
         except Exception as e:
-            print(f"Error rendering PDF template: {e}")
+            logger.error(f"Error rendering PDF template: {e}")
             # Fallback to regular HTML template
             html_content = render_template('report.html', 
                                          scan=scan, 
                                          vulns=vulns,
                                          vuln_by_severity=vuln_by_severity,
+                                         assets=assets,
                                          generated_at=datetime.utcnow())
+
         
         # PDF-specific CSS for better formatting
         pdf_css = CSS(string='''

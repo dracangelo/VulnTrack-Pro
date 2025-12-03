@@ -258,24 +258,46 @@ function getVulnStatusBadge(status) {
 // Show vulnerability details (placeholder for future modal)
 window.showVulnDetails = async function (vulnId) {
     try {
+        console.log('Loading vulnerability details for ID:', vulnId);
+
         // Fetch full vulnerability details
         const response = await fetch(`/api/vulns/instances?target_id=${currentVulnTargetId}`);
+        if (!response.ok) {
+            throw new Error(`Failed to fetch vulnerabilities: ${response.status} ${response.statusText}`);
+        }
+
         const vulnerabilities = await response.json();
+        console.log('Fetched vulnerabilities:', vulnerabilities.length);
 
         // Find the specific vulnerability
         const vuln = vulnerabilities.find(v => v.id === vulnId);
 
         if (!vuln) {
+            console.error('Vulnerability not found in list. Looking for ID:', vulnId);
+            console.error('Available IDs:', vulnerabilities.map(v => v.id));
             alert('Vulnerability not found');
             return;
         }
 
+        console.log('Found vulnerability:', vuln);
+
         // Fetch the full vulnerability definition for description and remediation
+        console.log('Fetching vulnerability definition for ID:', vuln.vulnerability_id);
         const vulnDefResponse = await fetch(`/api/vulns/${vuln.vulnerability_id}`);
+        if (!vulnDefResponse.ok) {
+            throw new Error(`Failed to fetch vulnerability definition: ${vulnDefResponse.status}`);
+        }
+
         const vulnDef = await vulnDefResponse.json();
+        console.log('Fetched vulnerability definition:', vulnDef);
 
         // Populate modal
-        document.getElementById('vulnDetailTitle').textContent = vuln.vulnerability_name || 'Unknown Vulnerability';
+        const titleEl = document.getElementById('vulnDetailTitle');
+        if (!titleEl) {
+            throw new Error('Modal element vulnDetailTitle not found');
+        }
+        titleEl.textContent = vuln.vulnerability_name || 'Unknown Vulnerability';
+
         document.getElementById('vulnDetailCVE').textContent = vulnDef.cve_id ? `CVE: ${vulnDef.cve_id}` : '';
 
         // Severity and CVSS
@@ -317,21 +339,35 @@ window.showVulnDetails = async function (vulnId) {
         document.getElementById('vulnNewStatus').value = vuln.status;
 
         // Show modal
-        document.getElementById('vulnDetailsModal').classList.remove('hidden');
+        const modal = document.getElementById('vulnDetailsModal');
+        if (!modal) {
+            throw new Error('Modal element vulnDetailsModal not found');
+        }
+        modal.classList.remove('hidden');
 
-        // Reset tabs
-        switchVulnTab('details');
+        // Reset tabs (if function exists)
+        if (typeof switchVulnTab === 'function') {
+            switchVulnTab('details');
+        } else {
+            console.warn('switchVulnTab function not found, skipping tab reset');
+        }
 
         // Pre-fill exploit search if CVE exists
-        if (vulnDef.cve_id) {
-            document.getElementById('exploitSearchQuery').value = vulnDef.cve_id;
-        } else {
-            document.getElementById('exploitSearchQuery').value = '';
+        const exploitSearchEl = document.getElementById('exploitSearchQuery');
+        if (exploitSearchEl) {
+            if (vulnDef.cve_id) {
+                exploitSearchEl.value = vulnDef.cve_id;
+            } else {
+                exploitSearchEl.value = '';
+            }
         }
+
+        console.log('Vulnerability details loaded successfully');
 
     } catch (error) {
         console.error('Error fetching vulnerability details:', error);
-        alert('Failed to load vulnerability details');
+        console.error('Error stack:', error.stack);
+        alert(`Failed to load vulnerability details: ${error.message}`);
     }
 };
 

@@ -3,6 +3,10 @@ from api.models.vulnerability import Vulnerability, VulnerabilityInstance
 from api.models.scan import Scan
 from api.services.vuln_parser import VulnParser
 import json
+import logging
+
+# Configure logger
+logger = logging.getLogger(__name__)
 
 class VulnManager:
     def __init__(self):
@@ -12,14 +16,26 @@ class VulnManager:
         """
         Processes a completed scan, parses results, and updates the vulnerability database.
         """
+        logger.info(f"Processing scan results for scan_id: {scan_id}")
+        
         scan = Scan.query.get(scan_id)
-        if not scan or scan.status != 'completed' or not scan.raw_output:
+        if not scan:
+            logger.error(f"Scan {scan_id} not found")
+            return
+        
+        if scan.status != 'completed':
+            logger.warning(f"Scan {scan_id} status is '{scan.status}', expected 'completed'")
+            return
+        
+        if not scan.raw_output:
+            logger.warning(f"Scan {scan_id} has no raw_output")
             return
 
         try:
             scan_data = json.loads(scan.raw_output)
-        except json.JSONDecodeError:
-            print(f"Failed to decode scan output for scan {scan_id}")
+            logger.debug(f"Scan {scan_id} raw_output decoded successfully")
+        except json.JSONDecodeError as e:
+            logger.error(f"Failed to decode scan output for scan {scan_id}: {e}")
             return
 
         vulnerabilities = []
@@ -27,15 +43,22 @@ class VulnManager:
             # Handle both old format (list) and new format (dict with 'results' key)
             if isinstance(scan_data, dict) and 'results' in scan_data:
                 results = scan_data['results']
+                logger.debug(f"Scan {scan_id} using new format with 'results' key: {len(results)} items")
             elif isinstance(scan_data, list):
                 results = scan_data
+                logger.debug(f"Scan {scan_id} using old list format: {len(results)} items")
             else:
                 results = []
+                logger.warning(f"Scan {scan_id} has unexpected data format: {type(scan_data)}")
+            
             vulnerabilities = self.parser.parse_nmap_results(results)
+            logger.info(f"Scan {scan_id} parsed {len(vulnerabilities)} vulnerabilities from Nmap results")
         elif scan.scan_type == 'openvas':
             # OpenVAS results are already parsed
             vulnerabilities = scan_data.get('vulnerabilities', [])
-        # Add other types here
+            logger.info(f"Scan {scan_id} extracted {len(vulnerabilities)} vulnerabilities from OpenVAS results")
+        else:
+            logger.warning(f"Scan {scan_id} has unknown scan_type: {scan.scan_type}")
         
         # Track vulnerability counts
         vuln_breakdown = {
@@ -46,18 +69,26 @@ class VulnManager:
             'Info': 0
         }
         
+        created_count = 0
         for vuln_dict in vulnerabilities:
-            self._create_or_update_vuln(vuln_dict, scan)
-            
-            # Update breakdown
-            severity = vuln_dict.get('severity', 'Info')
-            if severity in vuln_breakdown:
-                vuln_breakdown[severity] += 1
+            try:
+                self._create_or_update_vuln(vuln_dict, scan)
+                created_count += 1
+                
+                # Update breakdown
+                severity = vuln_dict.get('severity', 'Info')
+                if severity in vuln_breakdown:
+                    vuln_breakdown[severity] += 1
+            except Exception as e:
+                logger.error(f"Error creating vulnerability for scan {scan_id}: {e}", exc_info=True)
         
         # Update scan with vulnerability counts
         scan.vuln_count = len(vulnerabilities)
         scan.vuln_breakdown = vuln_breakdown
         db.session.commit()
+        
+        logger.info(f"Scan {scan_id} processing complete: {created_count}/{len(vulnerabilities)} vulnerabilities created. Breakdown: {vuln_breakdown}")
+
 
     def _create_or_update_vuln(self, vuln_dict, scan):
         """
