@@ -313,28 +313,29 @@
 
 ### v1.2 — Advanced Reporting & Analytics (1 month)
 #### Report Enhancements
-- [ ] Executive Summary reports (high-level, charts)
-- [ ] Technical Report templates (detailed findings)
-- [ ] Compliance Reports (PCI-DSS, HIPAA, SOC 2)
-- [ ] Trend Analysis reports (vulnerability trends over time)
-- [ ] Comparison Reports (scan A vs scan B)
-- [ ] Export to Excel (XLSX)
-- [ ] Export to HTML (standalone)
-- [ ] Export to Markdown
+- [x] Executive Summary reports (high-level, charts)
+- [x] Technical Report templates (detailed findings)
+- [x] Compliance Reports (PCI-DSS, HIPAA, SOC 2)
+- [x] Trend Analysis reports (vulnerability trends over time)
+- [x] Comparison Reports (scan A vs scan B)
+- [x] Export to Excel (XLSX)
+- [x] Export to HTML (standalone)
+- [x] Export to Markdown
 - [ ] Scheduled recurring reports
-- [ ] Email reports automatically
 - [ ] Custom report templates
+- [ ] Email reports automatically
+
 
 #### Dashboard Enhancements
-- [ ] Vulnerability timeline (line chart)
-- [ ] Attack surface map (network diagram)
-- [ ] Risk heat map by subnet/group
-- [ ] Scan coverage gauge (% of targets scanned)
-- [ ] MTTR (Mean Time To Remediate) metric
-- [ ] Vulnerability age distribution
-- [ ] Click-through filtering from charts
-- [ ] Customizable dashboard widgets
-- [ ] Save dashboard layouts
+- [x] Vulnerability timeline (line chart)
+- [x] Attack surface map (network diagram)
+- [x] Risk heat map by subnet/group
+- [x] Scan coverage gauge (% of targets scanned)
+- [x] MTTR (Mean Time To Remediate) metric
+- [x] Vulnerability age distribution
+- [x] Click-through filtering from charts
+- [x] Customizable dashboard widgets
+- [x] Save dashboard layouts
 
 ### v1.3 — Productivity Features (2-3 weeks)
 #### Bulk Operations Expansion

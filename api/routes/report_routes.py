@@ -1,12 +1,99 @@
 from flask import Blueprint, jsonify, request, Response, send_file
-import io
+from io import BytesIO
 from api.models.report import Report
 from api.models.scan import Scan
 from api.extensions import db
-from api.services.report_generator import ReportGenerator
 from datetime import datetime
 
+# New advanced report generator (from package)
+from api.services.report_generator import ReportGenerator as NewReportGenerator
+# Old/legacy report generator (from legacy file)
+from api.services.legacy_report_generator import ReportGenerator as OldReportGenerator
+
 report_bp = Blueprint('reports', __name__, url_prefix='/api/reports')
+
+@report_bp.route('/generate', methods=['POST'])
+def generate_advanced_report():
+    """
+    Generate advanced reports with multiple types and formats.
+    
+    Expected JSON:
+    {
+        "type": "executive|technical|compliance|trend|comparison",
+        "format": "excel|html|markdown|pdf|csv|json",
+        "filters": {
+            "scan_ids": [1, 2, 3],
+            "severity": ["critical", "high"],
+            "date_range": {"start": "2024-01-01", "end": "2024-12-31"}
+        },
+        "compliance_standard": "pci-dss|hipaa|soc2",  // for compliance reports
+        "period_days": 30,  // for trend reports
+        "scan_a_id": 1,  // for comparison reports
+        "scan_b_id": 2   // for comparison reports
+    }
+    """
+    data = request.get_json()
+    
+    if not data:
+        return jsonify({'error': 'No data provided'}), 400
+    
+    report_type = data.get('type', 'technical')
+    export_format = data.get('format', 'pdf')
+    filters = data.get('filters', {})
+    
+    # Extract additional parameters
+    kwargs = {}
+    if report_type == 'compliance':
+        kwargs['compliance_standard'] = data.get('compliance_standard', 'pci-dss')
+    elif report_type == 'trend':
+        kwargs['period_days'] = data.get('period_days', 30)
+    elif report_type == 'comparison':
+        kwargs['scan_a_id'] = data.get('scan_a_id')
+        kwargs['scan_b_id'] = data.get('scan_b_id')
+    
+    try:
+        # Generate report
+        report_data, content_type = NewReportGenerator.generate(
+            report_type=report_type,
+            export_format=export_format,
+            filters=filters,
+            **kwargs
+        )
+        
+        # Determine filename
+        timestamp = datetime.utcnow().strftime('%Y%m%d_%H%M%S')
+        extensions = {
+            'excel': 'xlsx',
+            'html': 'html',
+            'markdown': 'md',
+            'pdf': 'pdf',
+            'csv': 'csv',
+            'json': 'json'
+        }
+        ext = extensions.get(export_format, 'txt')
+        filename = f"{report_type}_report_{timestamp}.{ext}"
+        
+        # Return file
+        if isinstance(report_data, BytesIO):
+            return send_file(
+                report_data,
+                mimetype=content_type,
+                as_attachment=True,
+                download_name=filename
+            )
+        else:
+            # String data (HTML, Markdown, CSV, JSON)
+            return send_file(
+                BytesIO(report_data.encode('utf-8')),
+                mimetype=content_type,
+                as_attachment=True,
+                download_name=filename
+            )
+    
+    except ValueError as e:
+        return jsonify({'error': str(e)}), 400
+    except Exception as e:
+        return jsonify({'error': f'Report generation failed: {str(e)}'}), 500
 
 @report_bp.route('/', methods=['GET'])
 def get_reports():
@@ -29,7 +116,7 @@ def create_report():
         
     # Generate report content
     if fmt == 'html':
-        content = ReportGenerator.generate_html_report(scan_id)
+        content = OldReportGenerator.generate_html_report(scan_id)
         if not content:
             return jsonify({'error': 'Failed to generate HTML report'}), 500
             
@@ -47,7 +134,7 @@ def create_report():
         return jsonify(report.to_dict()), 201
         
     elif fmt == 'pdf':
-        pdf_content = ReportGenerator.generate_pdf_report(scan_id)
+        pdf_content = OldReportGenerator.generate_pdf_report(scan_id)
         if not pdf_content:
             return jsonify({'error': 'Failed to generate PDF report'}), 500
             
@@ -124,7 +211,7 @@ def get_stats():
 @report_bp.route('/scan/<int:scan_id>/pdf', methods=['GET'])
 def download_scan_report_pdf(scan_id):
     try:
-        pdf_bytes = ReportGenerator.generate_pdf_report(scan_id)
+        pdf_bytes = OldReportGenerator.generate_pdf_report(scan_id)
         if not pdf_bytes:
             return jsonify({'error': 'Report generation failed or scan not found'}), 404
             
@@ -149,7 +236,7 @@ def download_scan_pdf(scan_id):
         pdf_data = scan.report_pdf
     else:
         # Generate PDF on-demand
-        pdf_data = ReportGenerator.generate_pdf_report(scan_id)
+        pdf_data = OldReportGenerator.generate_pdf_report(scan_id)
         
         if not pdf_data:
             return jsonify({'error': 'Failed to generate PDF'}), 500

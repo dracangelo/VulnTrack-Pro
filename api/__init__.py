@@ -51,6 +51,7 @@ def create_app(config_class=Config):
     from api.routes.auth_routes import auth_bp
     from api.routes.role_routes import role_bp
     from api.routes.audit_routes import audit_bp
+    from api.routes.dashboard_routes import dashboard_bp
     
     app.register_blueprint(target_bp)
     app.register_blueprint(scan_bp)
@@ -67,6 +68,7 @@ def create_app(config_class=Config):
     app.register_blueprint(auth_bp)
     app.register_blueprint(role_bp)
     app.register_blueprint(audit_bp)
+    app.register_blueprint(dashboard_bp)
     
     # Register WebSocket events
     from api import socket_events
