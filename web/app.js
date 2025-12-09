@@ -503,6 +503,7 @@ document.addEventListener('DOMContentLoaded', () => {
             const formData = new FormData(e.target);
             const cidr = formData.get('cidr');
             const description = formData.get('description');
+            const keepAsSingle = document.getElementById('keepAsSingle').checked;
 
             // Show loading indicator
             const submitBtn = e.target.querySelector('button[type="submit"]');
@@ -517,7 +518,8 @@ document.addEventListener('DOMContentLoaded', () => {
                     body: JSON.stringify({
                         input: cidr,
                         type: 'cidr',
-                        description: description
+                        description: description,
+                        keep_as_single: keepAsSingle
                     })
                 });
 
@@ -526,9 +528,15 @@ document.addEventListener('DOMContentLoaded', () => {
                 if (response.ok) {
                     e.target.reset();
                     fetchTargets();
-                    let message = `Successfully added ${result.created} targets from CIDR range!`;
-                    if (result.errors && result.errors.length > 0) {
-                        message += `\n\nSkipped ${result.errors.length} existing targets.`;
+
+                    let message;
+                    if (keepAsSingle) {
+                        message = `CIDR target created successfully!\nCIDR: ${result.cidr}`;
+                    } else {
+                        message = `Successfully added ${result.created} targets from CIDR range!`;
+                        if (result.errors && result.errors.length > 0) {
+                            message += `\n\nSkipped (already exist): ${result.errors.join(', ')}`;
+                        }
                     }
                     alert(message);
                 } else {
