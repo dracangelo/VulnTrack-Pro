@@ -61,3 +61,18 @@ def get_activity_feed():
         'details': a.details,
         'timestamp': a.timestamp.isoformat()
     } for a in activities])
+
+@collab_bp.route('/activity/vulnerability/<int:vuln_id>', methods=['GET'])
+@jwt_required()
+def get_vulnerability_activity(vuln_id):
+    """Get activity feed for a vulnerability."""
+    activities = CollaborationService.get_vulnerability_activity(vuln_id)
+    
+    return jsonify([{
+        'id': a.id,
+        'user': a.user.username if a.user else 'System',
+        'action': a.action,
+        'details': a.details,
+        'timestamp': a.timestamp.isoformat(),
+        'type': 'activity' # Marker for frontend
+    } for a in activities])

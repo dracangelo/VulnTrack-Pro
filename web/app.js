@@ -201,6 +201,10 @@ document.addEventListener('DOMContentLoaded', () => {
             subtitle.textContent = 'Join VulnTrack today';
             link.textContent = 'Already have an account? Sign In';
         }
+        // Check for invites
+        if (window.checkInvite) {
+            window.checkInvite();
+        }
     };
 
     // Initial Auth Check

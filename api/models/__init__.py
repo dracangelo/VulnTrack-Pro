@@ -9,3 +9,4 @@ from .role import Role, Permission, RolePermission
 from .team import Team
 from .comment import Comment
 from .activity_log import ActivityLog
+from .invitation import TeamInvitation

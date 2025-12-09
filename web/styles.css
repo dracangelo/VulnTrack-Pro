@@ -1244,3 +1244,176 @@ tr:hover {
         color: black;
     }
 }
+/* Comment Section Styles */
+.comment-section {
+    display: flex;
+    flex-direction: column;
+    gap: 1.5rem;
+}
+
+.comment-input-wrapper {
+    position: relative;
+    background: #0A1628; /* Darker background */
+    border: 1px solid var(--border-color);
+    border-radius: 0.5rem;
+    padding: 0.75rem;
+    margin-bottom: 2rem;
+    transition: all 0.2s;
+}
+
+.comment-input-wrapper:focus-within {
+    border-color: var(--accent-cyan);
+    box-shadow: 0 0 0 1px var(--accent-cyan);
+}
+
+.comment-textarea {
+    width: 100%;
+    background: transparent;
+    border: none;
+    color: var(--text-primary);
+    resize: vertical;
+    min-height: 100px;
+    padding: 0;
+    font-family: inherit;
+    font-size: 0.95rem;
+    padding-bottom: 3rem; /* Space for button */
+}
+
+.comment-textarea::placeholder {
+    color: var(--text-secondary);
+    opacity: 0.7;
+}
+
+.comment-textarea:focus {
+    outline: none;
+    box-shadow: none;
+}
+
+.comment-submit-btn {
+    position: absolute;
+    bottom: 0.75rem;
+    right: 0.75rem;
+    padding: 0.5rem 1.25rem;
+    font-size: 0.875rem;
+    font-weight: 600;
+    background: var(--accent-cyan);
+    color: var(--bg-primary); /* Dark text on cyan button */
+    border: none;
+    border-radius: 0.375rem;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.comment-submit-btn:hover {
+    background: var(--accent-cyan-dark);
+    transform: translateY(-1px);
+}
+
+.comment-list {
+    display: flex;
+    flex-direction: column;
+    gap: 1.5rem;
+}
+
+.comment-item {
+    display: flex;
+    gap: 1rem;
+    align-items: flex-start;
+}
+
+.comment-avatar {
+    width: 36px;
+    height: 36px;
+    border-radius: 50%;
+    background: var(--bg-card);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: var(--text-primary);
+    font-weight: 600;
+    font-size: 0.875rem;
+    flex-shrink: 0;
+    border: 1px solid var(--border-color);
+}
+
+/* Removed background box from comment content to match screenshot */
+.comment-content {
+    flex: 1;
+    padding-top: 0.25rem;
+}
+
+.comment-header {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    margin-bottom: 0.25rem;
+}
+
+.comment-author {
+    font-weight: 700;
+    color: var(--text-primary);
+    font-size: 0.95rem;
+}
+
+.comment-time {
+    font-size: 0.75rem;
+    color: var(--accent-cyan);
+}
+
+.comment-text {
+    color: var(--text-primary);
+    line-height: 1.5;
+    white-space: pre-wrap;
+    font-size: 0.95rem;
+}
+
+.mention {
+    color: var(--accent-cyan);
+    font-weight: 500;
+}
+
+/* Activity Item Styles */
+.activity-item {
+    display: flex;
+    gap: 1rem;
+    padding: 0.25rem 0;
+    position: relative;
+}
+
+/* Vertical line for timeline effect (optional, but looks nice) */
+.activity-item::before {
+    content: '';
+    position: absolute;
+    left: 18px; /* Center of icon */
+    top: 36px;
+    bottom: -12px;
+    width: 1px;
+    background: var(--border-color);
+    display: none; /* Hidden for now unless requested */
+}
+
+.activity-icon {
+    width: 36px;
+    height: 36px; /* Fixed height for alignment */
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: var(--accent-cyan);
+    flex-shrink: 0;
+}
+
+.activity-content-wrapper {
+    flex: 1;
+    padding-top: 0.5rem; /* Align with icon center roughly */
+}
+
+.activity-text {
+    color: var(--text-primary);
+    font-size: 0.9rem;
+}
+
+.activity-time {
+    color: var(--accent-cyan);
+    font-size: 0.75rem;
+    margin-top: 0.25rem;
+}

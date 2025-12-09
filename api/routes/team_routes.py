@@ -1,8 +1,11 @@
 from flask import Blueprint, jsonify, request
 from api.models.team import Team
 from api.models.user import User
+from api.models.invitation import TeamInvitation
+from api.services.email_service import EmailService
 from api.extensions import db
 from flask_jwt_extended import jwt_required, get_jwt_identity
+from datetime import datetime, timedelta
 
 team_bp = Blueprint('teams', __name__, url_prefix='/api/teams')
 
@@ -99,3 +102,82 @@ def remove_member(team_id, user_id):
         db.session.commit()
         
     return jsonify({'message': 'User removed from team'})
+
+@team_bp.route('/<int:team_id>/invites', methods=['POST'])
+@jwt_required()
+def create_invitation(team_id):
+    """Create a new invitation."""
+    team = Team.query.get_or_404(team_id)
+    current_user_id = get_jwt_identity()
+    
+    # Check if user is member (or admin)
+    if not any(m.id == int(current_user_id) for m in team.members):
+        return jsonify({'error': 'Permission denied'}), 403
+        
+    data = request.get_json() or {}
+    email = data.get('email')
+    
+    invitation = TeamInvitation(
+        team_id=team.id,
+        inviter_id=current_user_id,
+        email=email,
+        expires_at=datetime.utcnow() + timedelta(days=7)
+    )
+    
+    db.session.add(invitation)
+    db.session.commit()
+    
+    invite_link = f"{request.host_url}?invite={invitation.token}"
+    
+    if email:
+        EmailService.send_invitation_email(email, team.name, invite_link)
+        
+    return jsonify({
+        'message': 'Invitation created',
+        'link': invite_link,
+        'invitation': invitation.to_dict()
+    })
+
+@team_bp.route('/invites/<token>', methods=['GET'])
+def get_invitation(token):
+    """Get invitation details."""
+    invitation = TeamInvitation.query.filter_by(token=token).first_or_404()
+    
+    if invitation.status != 'pending':
+        return jsonify({'error': 'Invitation is no longer valid'}), 400
+        
+    if invitation.expires_at and invitation.expires_at < datetime.utcnow():
+        return jsonify({'error': 'Invitation has expired'}), 400
+        
+    return jsonify(invitation.to_dict())
+
+@team_bp.route('/invites/<token>/accept', methods=['POST'])
+@jwt_required()
+def accept_invitation(token):
+    """Accept an invitation."""
+    invitation = TeamInvitation.query.filter_by(token=token).first_or_404()
+    
+    if invitation.status != 'pending':
+        return jsonify({'error': 'Invitation is no longer valid'}), 400
+        
+    if invitation.expires_at and invitation.expires_at < datetime.utcnow():
+        return jsonify({'error': 'Invitation has expired'}), 400
+        
+    current_user_id = get_jwt_identity()
+    user = User.query.get(current_user_id)
+    
+    if not user:
+        return jsonify({'error': 'User not found'}), 404
+        
+    # Add user to team
+    team = Team.query.get(invitation.team_id)
+    if user not in team.members:
+        team.members.append(user)
+        
+    invitation.status = 'accepted'
+    db.session.commit()
+    
+    return jsonify({
+        'message': f'You have joined {team.name}',
+        'team_id': team.id
+    })

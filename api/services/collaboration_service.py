@@ -101,4 +101,15 @@ class CollaborationService:
             ActivityLog.user_id.in_(teammate_ids)
         ).order_by(ActivityLog.timestamp.desc()).limit(limit).all()
         
+        
         return activities
+
+    @staticmethod
+    def get_vulnerability_activity(vuln_id):
+        """
+        Get activity logs for a specific vulnerability instance.
+        """
+        return ActivityLog.query.filter_by(
+            target_type='vulnerability_instance',
+            target_id=vuln_id
+        ).order_by(ActivityLog.timestamp.desc()).all()

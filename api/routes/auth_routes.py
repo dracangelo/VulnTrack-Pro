@@ -72,6 +72,53 @@ def get_current_user():
     
     return jsonify(user.to_dict())
 
+@auth_bp.route('/me', methods=['PUT'])
+@jwt_required()
+def update_current_user():
+    """Update current user info"""
+    from werkzeug.security import generate_password_hash
+    from api.middleware.input_validation import validate_password_complexity, validate_email
+    from api.extensions import db
+    
+    current_user_id = get_jwt_identity()
+    user = User.query.get(current_user_id)
+    
+    if not user:
+        return jsonify({'error': 'User not found'}), 404
+        
+    data = request.get_json()
+    
+    # Update username
+    if 'username' in data and data['username'] != user.username:
+        if User.query.filter_by(username=data['username']).first():
+            return jsonify({'error': 'Username already exists'}), 409
+        user.username = data['username']
+        
+    # Update email
+    if 'email' in data and data['email'] != user.email:
+        if not validate_email(data['email']):
+            return jsonify({'error': 'Invalid email format'}), 400
+        if User.query.filter_by(email=data['email']).first():
+            return jsonify({'error': 'Email already exists'}), 409
+        user.email = data['email']
+        
+    # Update password
+    if 'password' in data and data['password']:
+        is_valid, error_message = validate_password_complexity(data['password'])
+        if not is_valid:
+            return jsonify({'error': error_message}), 400
+        user.password_hash = generate_password_hash(data['password'])
+        
+    try:
+        db.session.commit()
+        return jsonify({
+            'message': 'Profile updated successfully',
+            'user': user.to_dict()
+        })
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({'error': 'Failed to update profile'}), 500
+
 @auth_bp.route('/logout', methods=['POST'])
 @jwt_required()
 def logout():

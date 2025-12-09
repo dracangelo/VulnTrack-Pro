@@ -212,3 +212,89 @@ window.removeTeamMember = async function (teamId, userId) {
         console.error('Error removing member:', error);
     }
 };
+
+// ========== Invitations ==========
+
+window.showInviteModal = function () {
+    document.getElementById('inviteModal').classList.remove('hidden');
+    document.getElementById('inviteLinkInput').value = '';
+};
+
+window.hideInviteModal = function () {
+    document.getElementById('inviteModal').classList.add('hidden');
+};
+
+window.generateInviteLink = async function () {
+    const teamId = document.getElementById('currentTeamId').value;
+    try {
+        const response = await fetch(`/api/teams/${teamId}/invites`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({})
+        });
+
+        if (response.ok) {
+            const data = await response.json();
+            document.getElementById('inviteLinkInput').value = data.link;
+        } else {
+            alert('Failed to generate link');
+        }
+    } catch (error) {
+        console.error('Error generating link:', error);
+    }
+};
+
+window.sendInviteEmail = async function (event) {
+    event.preventDefault();
+    const teamId = document.getElementById('currentTeamId').value;
+    const email = document.getElementById('inviteEmailInput').value;
+
+    try {
+        const response = await fetch(`/api/teams/${teamId}/invites`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ email: email })
+        });
+
+        if (response.ok) {
+            alert('Invitation sent successfully');
+            document.getElementById('inviteEmailInput').value = '';
+            hideInviteModal();
+        } else {
+            alert('Failed to send invitation');
+        }
+    } catch (error) {
+        console.error('Error sending invitation:', error);
+    }
+};
+
+// Check for invite in URL
+window.checkInvite = async function () {
+    const urlParams = new URLSearchParams(window.location.search);
+    const inviteToken = urlParams.get('invite');
+
+    if (inviteToken) {
+        // Clear param
+        window.history.replaceState({}, document.title, "/");
+
+        if (!confirm('You have been invited to join a team. Do you want to join now?')) return;
+
+        try {
+            const response = await fetch(`/api/teams/invites/${inviteToken}/accept`, {
+                method: 'POST'
+            });
+
+            const data = await response.json();
+
+            if (response.ok) {
+                alert(data.message);
+                fetchTeams(); // Refresh teams list
+            } else {
+                alert(`Failed to join team: ${data.error || 'Unknown error'}`);
+            }
+        } catch (error) {
+            console.error('Error accepting invite:', error);
+            alert('Error accepting invitation');
+        }
+    }
+};

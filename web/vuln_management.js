@@ -585,38 +585,111 @@ window.triggerCreateTicket = async function () {
 
 // ========== Comments Management ==========
 
-// Load comments for the current vulnerability
+// Load comments and activity for the current vulnerability
 window.loadVulnComments = async function () {
     const vulnId = document.getElementById('vulnDetailInstanceId').value;
     if (!vulnId) return;
 
     try {
-        const response = await fetch(`/api/collaboration/comments/vulnerability/${vulnId}`);
-        const comments = await response.json();
-        renderComments(comments);
+        // Fetch comments
+        const commentsPromise = fetch(`/api/collaboration/comments/vulnerability/${vulnId}`).then(res => res.json());
+
+        // Fetch activity
+        const activityPromise = fetch(`/api/collaboration/activity/vulnerability/${vulnId}`).then(res => res.json());
+
+        const [comments, activities] = await Promise.all([commentsPromise, activityPromise]);
+
+        // Tag items
+        const taggedComments = comments.map(c => ({ ...c, type: 'comment' }));
+        // Activities are already tagged by backend, but let's ensure
+        const taggedActivities = activities.map(a => ({ ...a, type: 'activity' }));
+
+        // Merge and sort by date (newest first)
+        const feed = [...taggedComments, ...taggedActivities].sort((a, b) => {
+            return new Date(b.created_at || b.timestamp) - new Date(a.created_at || a.timestamp);
+        });
+
+        renderFeed(feed);
     } catch (error) {
-        console.error('Error fetching comments:', error);
+        console.error('Error fetching feed:', error);
     }
 };
 
-function renderComments(comments) {
+function renderFeed(items) {
     const list = document.getElementById('vulnCommentsList');
     if (!list) return;
 
-    if (comments.length === 0) {
-        list.innerHTML = '<p style="color: var(--text-secondary); text-align: center;">No comments yet.</p>';
+    if (items.length === 0) {
+        list.innerHTML = '<p style="color: var(--text-secondary); text-align: center;">No activity yet.</p>';
         return;
     }
 
-    list.innerHTML = comments.map(comment => `
-        <div style="background: var(--bg-secondary); padding: 1rem; border-radius: 0.5rem;">
-            <div style="display: flex; justify-content: space-between; margin-bottom: 0.5rem;">
-                <strong style="color: var(--accent-cyan);">${comment.user_name}</strong>
-                <span style="color: var(--text-secondary); font-size: 0.875rem;">${new Date(comment.created_at).toLocaleString()}</span>
-            </div>
-            <div style="color: var(--text-primary); white-space: pre-wrap;">${comment.text}</div>
+    list.innerHTML = items.map(item => {
+        if (item.type === 'comment') {
+            return renderCommentItem(item);
+        } else {
+            return renderActivityItem(item);
+        }
+    }).join('');
+}
+
+function renderCommentItem(comment) {
+    // Highlight mentions
+    const text = comment.text.replace(/(@\w+)/g, '<span class="mention">$1</span>');
+
+    // Generate avatar (first letter of username)
+    const initial = comment.user_name ? comment.user_name.charAt(0).toUpperCase() : '?';
+
+    // Format date
+    const date = new Date(comment.created_at);
+    const dateStr = date.toISOString().replace('T', ' ').substring(0, 16) + ' UTC';
+
+    return `
+    <div class="comment-item">
+        <div class="comment-avatar">
+            ${initial}
         </div>
-    `).join('');
+        <div class="comment-content">
+            <div class="comment-header">
+                <span class="comment-author">@${comment.user_name}</span>
+                <span class="comment-time">${dateStr}</span>
+            </div>
+            <div class="comment-text">${text}</div>
+        </div>
+    </div>
+    `;
+}
+
+function renderActivityItem(activity) {
+    // Format date
+    const date = new Date(activity.timestamp);
+    const dateStr = date.toISOString().replace('T', ' ').substring(0, 16) + ' UTC';
+
+    let icon = 'fa-info-circle';
+    let color = 'var(--accent-cyan)';
+    let text = activity.details;
+
+    // Customize based on action
+    if (activity.action === 'status_change') {
+        icon = 'fa-exchange-alt';
+        // Parse details if it's JSON-like string or just use it
+        // Assuming details is "Status changed to X by Y"
+    } else if (activity.action === 'ticket_created') {
+        icon = 'fa-ticket-alt';
+        color = 'var(--accent-purple)';
+    }
+
+    return `
+    <div class="activity-item">
+        <div class="activity-icon">
+            <i class="fas ${icon}" style="color: ${color};"></i>
+        </div>
+        <div class="activity-content-wrapper">
+            <div class="activity-text">${text}</div>
+            <div class="activity-time">${dateStr}</div>
+        </div>
+    </div>
+    `;
 }
 
 // Add Comment

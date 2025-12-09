@@ -62,8 +62,10 @@
                 <i class="fas fa-users"></i>
                 Teams
             </a>
-            <a href="#" class="nav-item" data-section="users">
-                <i class="fas fa-user-cog"></i> Users
+            <i class="fas fa-user-cog"></i> Users
+            </a>
+            <a href="#" class="nav-item" data-section="profile">
+                <i class="fas fa-user-circle"></i> Profile
             </a>
             <a href="#" class="nav-item" data-section="settings">
                 <i class="fas fa-cog"></i>
@@ -597,6 +599,63 @@
             </div>
         </section>
 
+        <!-- Profile Section -->
+        <section id="profile-section" class="content-section hidden">
+            <div class="page-header">
+                <div class="breadcrumb">Home / Profile</div>
+                <h1 class="page-title">My Profile</h1>
+            </div>
+
+            <div class="card" style="max-width: 600px;">
+                <div class="card-header">
+                    <h3 class="card-title">User Information</h3>
+                    <button class="btn btn-secondary" onclick="toggleEditProfile()">
+                        <i class="fas fa-edit"></i> Edit Profile
+                    </button>
+                </div>
+
+                <!-- View Mode -->
+                <div id="profileViewMode">
+                    <div style="display: grid; grid-template-columns: 120px 1fr; gap: 1rem; margin-bottom: 1rem;">
+                        <div style="color: var(--text-secondary);">Username:</div>
+                        <div id="profileUsername" style="font-weight: 600;">Loading...</div>
+
+                        <div style="color: var(--text-secondary);">Email:</div>
+                        <div id="profileEmail">Loading...</div>
+
+                        <div style="color: var(--text-secondary);">Role:</div>
+                        <div id="profileRole"><span class="badge badge-info">Loading...</span></div>
+
+                        <div style="color: var(--text-secondary);">Joined:</div>
+                        <div id="profileJoined">Loading...</div>
+                    </div>
+                </div>
+
+                <!-- Edit Mode -->
+                <div id="profileEditMode" class="hidden">
+                    <form onsubmit="updateProfile(event)">
+                        <div class="form-group">
+                            <label class="form-label">Username</label>
+                            <input type="text" class="form-input" id="editUsername" required>
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label">Email</label>
+                            <input type="email" class="form-input" id="editEmail" required>
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label">New Password (leave blank to keep current)</label>
+                            <input type="password" class="form-input" id="editPassword" placeholder="New Password">
+                        </div>
+                        <div class="flex gap-4">
+                            <button type="button" class="btn btn-secondary"
+                                onclick="toggleEditProfile()">Cancel</button>
+                            <button type="submit" class="btn btn-primary">Save Changes</button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </section>
+
         <!-- Users Section -->
         <section id="users-section" class="content-section hidden">
             <div class="section-header">
@@ -842,9 +901,14 @@
 
             <div style="margin-bottom: 1rem; display: flex; justify-content: space-between; align-items: center;">
                 <h4 style="margin: 0;">Members</h4>
-                <button class="btn btn-sm btn-primary" onclick="addTeamMember()">
-                    <i class="fas fa-user-plus"></i> Add Member
-                </button>
+                <div class="flex gap-2">
+                    <button class="btn btn-sm btn-secondary" onclick="showInviteModal()">
+                        <i class="fas fa-envelope"></i> Invite
+                    </button>
+                    <button class="btn btn-sm btn-primary" onclick="addTeamMember()">
+                        <i class="fas fa-user-plus"></i> Add Member
+                    </button>
+                </div>
             </div>
 
             <div class="table-container">
@@ -860,6 +924,36 @@
                         <!-- Populated by JS -->
                     </tbody>
                 </table>
+            </div>
+        </div>
+    </div>
+
+    <!-- Invite Modal -->
+    <div id="inviteModal" class="hidden"
+        style="position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.8); z-index: 2100; display: flex; align-items: center; justify-content: center;">
+        <div class="card" style="max-width: 500px; width: 90%;">
+            <div class="card-header">
+                <h3 class="card-title">Invite to Team</h3>
+                <button onclick="hideInviteModal()"
+                    style="background: none; border: none; color: var(--text-secondary); cursor: pointer; font-size: 1.5rem;">&times;</button>
+            </div>
+            <div style="margin-bottom: 1.5rem;">
+                <h4 style="font-size: 0.875rem; color: var(--text-secondary); margin-bottom: 0.5rem;">SHARE LINK</h4>
+                <div class="flex gap-2">
+                    <input type="text" class="form-input" id="inviteLinkInput" readonly
+                        placeholder="Click generate to create link">
+                    <button class="btn btn-primary" onclick="generateInviteLink()">Generate</button>
+                </div>
+            </div>
+            <div style="border-top: 1px solid var(--border-color); padding-top: 1.5rem;">
+                <h4 style="font-size: 0.875rem; color: var(--text-secondary); margin-bottom: 0.5rem;">SEND EMAIL</h4>
+                <form onsubmit="sendInviteEmail(event)">
+                    <div class="form-group">
+                        <input type="email" class="form-input" id="inviteEmailInput" placeholder="Enter email address"
+                            required>
+                    </div>
+                    <button type="submit" class="btn btn-secondary" style="width: 100%;">Send Invitation</button>
+                </form>
             </div>
         </div>
     </div>
@@ -1120,22 +1214,22 @@
             </div>
 
             <!-- Comments Tab Content -->
+            <!-- Comments Tab Content -->
             <div id="vulnTab-comments" class="tab-content hidden">
-                <h4 style="font-size: 0.875rem; color: var(--text-secondary); margin-bottom: 1rem;">COMMENTS</h4>
+                <h4 style="font-size: 1rem; color: var(--accent-cyan); margin-bottom: 1.5rem; font-weight: 600;">
+                    Comments & Activity</h4>
 
                 <!-- Add Comment Form -->
-                <form id="addCommentForm" onsubmit="addVulnComment(event)" style="margin-bottom: 2rem;">
-                    <div class="form-group">
-                        <textarea class="form-textarea" id="newCommentText" rows="3" placeholder="Add a comment..."
-                            required></textarea>
-                    </div>
-                    <button type="submit" class="btn btn-primary">
-                        <i class="fas fa-paper-plane"></i> Post Comment
+                <form id="addCommentForm" onsubmit="addVulnComment(event)" class="comment-input-wrapper">
+                    <textarea class="comment-textarea" id="newCommentText"
+                        placeholder="Add a comment... @mention to notify" required></textarea>
+                    <button type="submit" class="btn btn-primary comment-submit-btn">
+                        Comment
                     </button>
                 </form>
 
                 <!-- Comments List -->
-                <div id="vulnCommentsList" style="display: flex; flex-direction: column; gap: 1rem;">
+                <div id="vulnCommentsList" class="comment-list">
                     <!-- Populated by JS -->
                 </div>
             </div>
@@ -1332,6 +1426,7 @@
     <script src="/static/teams.js"></script>
     <script src="/static/users.js"></script>
     <script src="/static/app.js"></script>
+    <script src="/static/profile.js"></script>
 </body>
 
 </html>
