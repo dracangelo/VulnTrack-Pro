@@ -340,25 +340,25 @@
 ### v1.3 — Productivity Features (2-3 weeks)
 #### Bulk Operations Expansion
 - [x] Bulk delete targets
-- [ ] Bulk scan targets
-- [ ] Bulk assign to group
-- [ ] Bulk export targets
-- [ ] Bulk edit (description, tags)
-- [ ] Bulk status change for vulnerabilities
-- [ ] Bulk assign vulnerabilities to tickets
-- [ ] Bulk mark as false positive
-- [ ] Bulk accept risk
+- [x] Bulk scan targets
+- [x] Bulk assign to group
+- [x] Bulk export targets
+- [x] Bulk edit (description, tags)
+- [x] Bulk status change for vulnerabilities
+- [x] Bulk assign vulnerabilities to tickets
+- [x] Bulk mark as false positive
+- [x] Bulk accept risk
 
 #### Search & Filtering
-- [ ] Global search (across all entities)
-- [ ] Fuzzy search
-- [ ] Search history
-- [ ] Saved searches/filters
-- [ ] Advanced filter combinations (AND/OR)
-- [ ] Date range filters
-- [ ] Custom filter presets
-- [ ] Export filtered results
-- [ ] Filter by CVE ID, CVSS score range
+- [x] Global search (across all entities)
+- [x] Fuzzy search (implemented via ILIKE)
+- [x] Search history
+- [x] Saved searches/filters
+- [x] Advanced filter combinations (AND/OR)
+- [x] Date range filters
+- [x] Custom filter presets
+- [x] Export filtered results
+- [x] Filter by CVE ID, CVSS score range
 
 #### Configuration Management
 - [ ] Settings UI for SMTP configuration

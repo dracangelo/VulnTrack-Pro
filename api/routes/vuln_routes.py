@@ -128,4 +128,34 @@ def update_instance(instance_id):
     
     db.session.commit()
     
+    db.session.commit()
+    
     return jsonify(instance.to_dict())
+
+# Bulk Operations
+from api.services.bulk_service import BulkService
+
+@vuln_bp.route('/bulk/status', methods=['POST'])
+def bulk_update_status():
+    data = request.get_json()
+    vuln_ids = data.get('vuln_ids', [])
+    status = data.get('status')
+    reason = data.get('false_positive_reason')
+    
+    if not vuln_ids or not status:
+        return jsonify({'error': 'Missing vuln_ids or status'}), 400
+        
+    count = BulkService.bulk_update_vuln_status(vuln_ids, status, reason)
+    return jsonify({'message': f'Updated {count} vulnerabilities'}), 200
+
+@vuln_bp.route('/bulk/ticket', methods=['POST'])
+def bulk_create_tickets():
+    data = request.get_json()
+    vuln_ids = data.get('vuln_ids', [])
+    ticket_data = data.get('ticket_data', {})
+    
+    if not vuln_ids:
+        return jsonify({'error': 'No vuln_ids provided'}), 400
+        
+    ticket_ids = BulkService.bulk_create_tickets(vuln_ids, ticket_data)
+    return jsonify({'message': f'Created {len(ticket_ids)} tickets', 'ticket_ids': ticket_ids}), 201

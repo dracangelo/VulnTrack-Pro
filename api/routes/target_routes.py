@@ -198,43 +198,62 @@ def update_target(id):
     db.session.commit()
     return jsonify({'message': 'Target updated'})
 
-@target_bp.route('/<int:id>', methods=['DELETE'])
-def delete_target(id):
-    target = Target.query.get_or_404(id)
+@target_bp.route('/<int:target_id>', methods=['DELETE'])
+def delete_target(target_id):
+    target = Target.query.get_or_404(target_id)
     db.session.delete(target)
     db.session.commit()
-    return jsonify({'message': 'Target deleted'})
+    return jsonify({'message': 'Target deleted successfully'})
 
-@target_bp.route('/bulk-delete', methods=['POST'])
-def bulk_delete_targets():
-    """
-    Delete multiple targets at once.
-    
-    Expected JSON:
-    {
-        "target_ids": [1, 2, 3, 4]
-    }
-    """
+# Bulk Operations
+from api.services.bulk_service import BulkService
+
+@target_bp.route('/bulk/scan', methods=['POST'])
+def bulk_scan_targets():
     data = request.get_json()
+    target_ids = data.get('target_ids', [])
+    scan_type = data.get('scan_type', 'quick')
     
-    if not data or 'target_ids' not in data:
-        return jsonify({'error': 'Missing required field: target_ids'}), 400
-    
-    target_ids = data['target_ids']
-    
-    if not isinstance(target_ids, list) or len(target_ids) == 0:
-        return jsonify({'error': 'target_ids must be a non-empty list'}), 400
-    
-    try:
-        # Delete all targets with the given IDs
-        deleted_count = Target.query.filter(Target.id.in_(target_ids)).delete(synchronize_session=False)
-        db.session.commit()
+    if not target_ids:
+        return jsonify({'error': 'No target IDs provided'}), 400
         
-        return jsonify({
-            'message': f'Successfully deleted {deleted_count} target(s)',
-            'deleted_count': deleted_count
-        }), 200
-    except Exception as e:
-        db.session.rollback()
-        return jsonify({'error': f'Error deleting targets: {str(e)}'}), 500
+    scan_ids = BulkService.bulk_scan_targets(target_ids, scan_type)
+    return jsonify({'message': f'Started {len(scan_ids)} scans', 'scan_ids': scan_ids}), 200
+
+@target_bp.route('/bulk/group', methods=['POST'])
+def bulk_assign_group():
+    data = request.get_json()
+    target_ids = data.get('target_ids', [])
+    group_id = data.get('group_id')
+    
+    if not target_ids or not group_id:
+        return jsonify({'error': 'Missing target_ids or group_id'}), 400
+        
+    count = BulkService.bulk_assign_group(target_ids, group_id)
+    return jsonify({'message': f'Updated {count} targets'}), 200
+
+@target_bp.route('/bulk/delete', methods=['POST'])
+def bulk_delete_targets():
+    data = request.get_json()
+    target_ids = data.get('target_ids', [])
+    
+    if not target_ids:
+        return jsonify({'error': 'No target IDs provided'}), 400
+        
+    count = BulkService.bulk_delete_targets(target_ids)
+    return jsonify({'message': f'Deleted {count} targets'}), 200
+
+@target_bp.route('/bulk/edit', methods=['POST'])
+def bulk_edit_targets():
+    data = request.get_json()
+    target_ids = data.get('target_ids', [])
+    update_data = data.get('data', {})
+    
+    if not target_ids or not update_data:
+        return jsonify({'error': 'Missing target_ids or update data'}), 400
+        
+    count = BulkService.bulk_edit_targets(target_ids, update_data)
+    return jsonify({'message': f'Updated {count} targets'}), 200
+
+
 
