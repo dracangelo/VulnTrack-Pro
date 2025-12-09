@@ -1,6 +1,11 @@
 from flask import Blueprint, jsonify, request
 from api.extensions import db
 from api.models.target import Target
+from api.utils.target_utils import (
+    validate_cidr, expand_cidr, 
+    validate_hostname, resolve_hostname,
+    validate_ip_address
+)
 
 target_bp = Blueprint('targets', __name__, url_prefix='/api/targets')
 
@@ -26,6 +31,135 @@ def create_target():
     
     return jsonify({'message': 'Target created', 'id': new_target.id}), 201
 
+@target_bp.route('/bulk', methods=['POST'])
+def create_bulk_targets():
+    """
+    Create multiple targets from CIDR range, hostname, or single IP.
+    
+    Expected JSON:
+    {
+        "input": "192.168.1.0/24" or "example.com" or "192.168.1.1",
+        "type": "cidr" or "hostname" or "ip",
+        "description": "Optional description",
+        "group_id": Optional group ID
+    }
+    """
+    data = request.get_json()
+    
+    if not data or 'input' not in data or 'type' not in data:
+        return jsonify({'error': 'Missing required fields: input and type'}), 400
+    
+    input_value = data['input'].strip()
+    input_type = data['type'].lower()
+    description = data.get('description', '')
+    group_id = data.get('group_id')
+    
+    created_targets = []
+    errors = []
+    
+    try:
+        if input_type == 'cidr':
+            # Validate and expand CIDR
+            if not validate_cidr(input_value):
+                return jsonify({'error': f'Invalid CIDR notation: {input_value}'}), 400
+            
+            ip_addresses = expand_cidr(input_value)
+            
+            # Limit to prevent abuse (max 1024 IPs)
+            if len(ip_addresses) > 1024:
+                return jsonify({'error': f'CIDR range too large. Maximum 1024 IPs allowed. This range contains {len(ip_addresses)} IPs.'}), 400
+            
+            # Create targets for each IP
+            for ip in ip_addresses:
+                # Check if target already exists
+                existing = Target.query.filter_by(ip_address=ip).first()
+                if existing:
+                    errors.append(f'{ip} already exists')
+                    continue
+                
+                target = Target(
+                    name=f'{input_value} - {ip}',
+                    ip_address=ip,
+                    description=description or f'Auto-created from CIDR: {input_value}',
+                    group_id=group_id
+                )
+                db.session.add(target)
+                created_targets.append(ip)
+            
+            db.session.commit()
+            
+            return jsonify({
+                'message': f'Created {len(created_targets)} targets from CIDR range',
+                'created': len(created_targets),
+                'errors': errors,
+                'targets': created_targets
+            }), 201
+            
+        elif input_type == 'hostname':
+            # Validate hostname
+            if not validate_hostname(input_value):
+                return jsonify({'error': f'Invalid hostname: {input_value}'}), 400
+            
+            # Resolve hostname to IP
+            try:
+                ip_address = resolve_hostname(input_value)
+            except ValueError as e:
+                return jsonify({'error': str(e)}), 400
+            
+            # Check if target already exists
+            existing = Target.query.filter_by(ip_address=ip_address).first()
+            if existing:
+                return jsonify({'error': f'Target with IP {ip_address} already exists (ID: {existing.id})'}), 409
+            
+            # Create target
+            target = Target(
+                name=input_value,
+                ip_address=ip_address,
+                description=description or f'Resolved from hostname: {input_value}',
+                group_id=group_id
+            )
+            db.session.add(target)
+            db.session.commit()
+            
+            return jsonify({
+                'message': 'Target created from hostname',
+                'id': target.id,
+                'hostname': input_value,
+                'ip_address': ip_address
+            }), 201
+            
+        elif input_type == 'ip':
+            # Validate IP address
+            if not validate_ip_address(input_value):
+                return jsonify({'error': f'Invalid IP address: {input_value}'}), 400
+            
+            # Check if target already exists
+            existing = Target.query.filter_by(ip_address=input_value).first()
+            if existing:
+                return jsonify({'error': f'Target with IP {input_value} already exists (ID: {existing.id})'}), 409
+            
+            # Create target
+            target = Target(
+                name=data.get('name', input_value),
+                ip_address=input_value,
+                description=description,
+                group_id=group_id
+            )
+            db.session.add(target)
+            db.session.commit()
+            
+            return jsonify({
+                'message': 'Target created',
+                'id': target.id
+            }), 201
+            
+        else:
+            return jsonify({'error': f'Invalid type: {input_type}. Must be "cidr", "hostname", or "ip"'}), 400
+            
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({'error': f'Error creating targets: {str(e)}'}), 500
+
 @target_bp.route('/<int:id>', methods=['PUT'])
 def update_target(id):
     target = Target.query.get_or_404(id)
@@ -45,3 +179,4 @@ def delete_target(id):
     db.session.delete(target)
     db.session.commit()
     return jsonify({'message': 'Target deleted'})
+

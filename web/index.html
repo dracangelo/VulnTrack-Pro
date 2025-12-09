@@ -207,12 +207,14 @@
                     </div>
 
                     <div class="tabs">
-                        <button class="tab active" data-tab="single">Single Target</button>
-                        <button class="tab" data-tab="range">Range/CIDR</button>
-                        <button class="tab" data-tab="hostname">Hostname</button>
+                        <button class="tab active" data-tab="single" onclick="switchTargetTab('single')">Single
+                            Target</button>
+                        <button class="tab" data-tab="range" onclick="switchTargetTab('range')">Range/CIDR</button>
+                        <button class="tab" data-tab="hostname" onclick="switchTargetTab('hostname')">Hostname</button>
                     </div>
 
-                    <form id="addTargetForm" action="javascript:void(0)">
+                    <!-- Single Target Form -->
+                    <form id="addTargetForm" action="javascript:void(0)" class="target-form" data-form="single">
                         <div class="form-group">
                             <label class="form-label">IP Address</label>
                             <input type="text" class="form-input" name="ip_address" placeholder="e.g., 192.168.1.1"
@@ -228,6 +230,46 @@
                         </div>
                         <button type="submit" class="btn btn-primary">
                             <i class="fas fa-plus-circle"></i> Add Target
+                        </button>
+                    </form>
+
+                    <!-- Range/CIDR Form -->
+                    <form id="addRangeForm" action="javascript:void(0)" class="target-form hidden" data-form="range">
+                        <div class="form-group">
+                            <label class="form-label">CIDR Range</label>
+                            <input type="text" class="form-input" name="cidr" placeholder="e.g., 192.168.1.0/24"
+                                required>
+                            <small style="color: var(--text-secondary); display: block; margin-top: 0.5rem;">
+                                Enter a CIDR notation (e.g., 192.168.1.0/24). Maximum 1024 IPs allowed.
+                            </small>
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label">Description (Optional)</label>
+                            <input type="text" class="form-input" name="description"
+                                placeholder="e.g., Internal network">
+                        </div>
+                        <button type="submit" class="btn btn-primary">
+                            <i class="fas fa-plus-circle"></i> Add Targets from Range
+                        </button>
+                    </form>
+
+                    <!-- Hostname Form -->
+                    <form id="addHostnameForm" action="javascript:void(0)" class="target-form hidden"
+                        data-form="hostname">
+                        <div class="form-group">
+                            <label class="form-label">Hostname</label>
+                            <input type="text" class="form-input" name="hostname" placeholder="e.g., example.com"
+                                required>
+                            <small style="color: var(--text-secondary); display: block; margin-top: 0.5rem;">
+                                Enter a hostname or domain name. It will be resolved to an IP address.
+                            </small>
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label">Description (Optional)</label>
+                            <input type="text" class="form-input" name="description" placeholder="Optional description">
+                        </div>
+                        <button type="submit" class="btn btn-primary">
+                            <i class="fas fa-plus-circle"></i> Add Target from Hostname
                         </button>
                     </form>
                 </div>
@@ -519,7 +561,7 @@
     <!-- New Scan Modal (Simple overlay for now) -->
     <div id="newScanModal" class="hidden"
         style="position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.8); z-index: 2000; display: flex; align-items: center; justify-content: center;">
-        <div class="card" style="max-width: 600px; width: 90%;">
+        <div class="card" style="max-width: 600px; width: 90%; max-height: 90vh; overflow-y: auto;">
             <div class="card-header">
                 <h3 class="card-title">Configure & Schedule Scan</h3>
                 <button onclick="hideNewScanModal()"
@@ -538,11 +580,11 @@
                         <label class="radio-item">
                             <input type="radio" name="scan_type" value="nmap_quick" checked
                                 onchange="toggleOpenVASConfig()">
-                            <span>Nmap Quick</span>
+                            <span>Nmap Quick (with Vuln Scan)</span>
                         </label>
                         <label class="radio-item">
                             <input type="radio" name="scan_type" value="nmap_full" onchange="toggleOpenVASConfig()">
-                            <span>Nmap Full</span>
+                            <span>Nmap Full (with Vuln Scan)</span>
                         </label>
                         <label class="radio-item">
                             <input type="radio" name="scan_type" value="openvas" onchange="toggleOpenVASConfig()">
@@ -567,7 +609,7 @@
     <!-- Live Scan Progress Modal -->
     <div id="liveScanModal" class="hidden"
         style="position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.9); z-index: 2000; display: flex; align-items: center; justify-content: center;">
-        <div class="card" style="max-width: 800px; width: 90%;">
+        <div class="card" style="max-width: 800px; width: 90%; max-height: 90vh; overflow-y: auto;">
             <div class="card-header">
                 <div>
                     <h3 class="card-title" style="color: var(--accent-cyan);">LIVE SCAN IN PROGRESS</h3>
@@ -862,7 +904,7 @@
     <!-- Create Report Modal -->
     <div id="createReportModal" class="hidden"
         style="position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.9); z-index: 2000; display: flex; align-items: center; justify-content: center;">
-        <div class="card" style="max-width: 600px; width: 90%;">
+        <div class="card" style="max-width: 600px; width: 90%; max-height: 90vh; overflow-y: auto;">
             <div class="card-header">
                 <h3 class="card-title">Create New Report</h3>
                 <button onclick="closeCreateReportModal()"
@@ -900,7 +942,7 @@
     <!-- Ticket Modal -->
     <div id="ticketModal" class="hidden"
         style="position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.9); z-index: 2000; display: flex; align-items: center; justify-content: center;">
-        <div class="card" style="max-width: 600px; width: 90%;">
+        <div class="card" style="max-width: 600px; width: 90%; max-height: 90vh; overflow-y: auto;">
             <div class="card-header">
                 <h3 class="card-title" id="ticketModalTitle">Create Ticket</h3>
                 <button onclick="closeTicketModal()"

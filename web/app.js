@@ -74,25 +74,19 @@ document.addEventListener('DOMContentLoaded', () => {
     showSection(initialSectionId);
 
     // Tab switching for target management
-    const tabs = document.querySelectorAll('.tab');
-    tabs.forEach(tab => {
-        tab.addEventListener('click', () => {
-            // Remove active class from all tabs
-            tabs.forEach(t => t.classList.remove('active'));
-            // Add active class to clicked tab
-            tab.classList.add('active');
-
-            const tabType = tab.dataset.tab;
-            // For now, just show a message for range/cidr and hostname tabs
-            // These would need backend support for full implementation
-            if (tabType === 'range' || tabType === 'hostname') {
-                alert(`${tabType.toUpperCase()} target addition coming soon! For now, please use Single Target.`);
-                // Switch back to single tab
-                document.querySelector('.tab[data-tab="single"]').classList.add('active');
-                tab.classList.remove('active');
-            }
+    window.switchTargetTab = function (tabName) {
+        // Update tab buttons
+        document.querySelectorAll('.tab').forEach(tab => {
+            tab.classList.remove('active');
         });
-    });
+        document.querySelector(`.tab[data-tab="${tabName}"]`).classList.add('active');
+
+        // Show/hide forms
+        document.querySelectorAll('.target-form').forEach(form => {
+            form.classList.add('hidden');
+        });
+        document.querySelector(`.target-form[data-form="${tabName}"]`).classList.remove('hidden');
+    };
 
     // Modal handling
     window.showNewScanModal = () => {
@@ -138,7 +132,12 @@ document.addEventListener('DOMContentLoaded', () => {
             }
         } else {
             requestData.scan_type = 'nmap';
-            requestData.args = scanType === 'nmap_full' ? '-sV -T4' : '-F';
+            if (scanType === 'nmap_full') {
+                requestData.args = '-sS -sV -sC -p1-65535 -Pn -O -A --script vuln';
+            } else {
+                // Nmap Quick with vulnerability scanning
+                requestData.args = '-F -sV --script vuln';
+            }
         }
 
         try {
@@ -451,7 +450,7 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     };
 
-    // Add new target
+    // Add new target (Single IP)
     const addTargetForm = document.getElementById('addTargetForm');
     if (addTargetForm) {
         addTargetForm.addEventListener('submit', async (e) => {
@@ -475,10 +474,106 @@ document.addEventListener('DOMContentLoaded', () => {
                     fetchTargets();
                     alert('Target added successfully!');
                 } else {
-                    alert('Failed to add target');
+                    const error = await response.json();
+                    alert(`Failed to add target: ${error.error || 'Unknown error'}`);
                 }
             } catch (error) {
                 console.error('Error adding target:', error);
+                alert('Error adding target: ' + error.message);
+            }
+        });
+    }
+
+    // Add targets from CIDR range
+    const addRangeForm = document.getElementById('addRangeForm');
+    if (addRangeForm) {
+        addRangeForm.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const formData = new FormData(e.target);
+            const cidr = formData.get('cidr');
+            const description = formData.get('description');
+
+            // Show loading indicator
+            const submitBtn = e.target.querySelector('button[type="submit"]');
+            const originalText = submitBtn.innerHTML;
+            submitBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Adding targets...';
+            submitBtn.disabled = true;
+
+            try {
+                const response = await fetch('/api/targets/bulk', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        input: cidr,
+                        type: 'cidr',
+                        description: description
+                    })
+                });
+
+                const result = await response.json();
+
+                if (response.ok) {
+                    e.target.reset();
+                    fetchTargets();
+                    let message = `Successfully added ${result.created} targets from CIDR range!`;
+                    if (result.errors && result.errors.length > 0) {
+                        message += `\n\nSkipped ${result.errors.length} existing targets.`;
+                    }
+                    alert(message);
+                } else {
+                    alert(`Failed to add targets: ${result.error || 'Unknown error'}`);
+                }
+            } catch (error) {
+                console.error('Error adding targets from CIDR:', error);
+                alert('Error adding targets: ' + error.message);
+            } finally {
+                submitBtn.innerHTML = originalText;
+                submitBtn.disabled = false;
+            }
+        });
+    }
+
+    // Add target from hostname
+    const addHostnameForm = document.getElementById('addHostnameForm');
+    if (addHostnameForm) {
+        addHostnameForm.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const formData = new FormData(e.target);
+            const hostname = formData.get('hostname');
+            const description = formData.get('description');
+
+            // Show loading indicator
+            const submitBtn = e.target.querySelector('button[type="submit"]');
+            const originalText = submitBtn.innerHTML;
+            submitBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Resolving hostname...';
+            submitBtn.disabled = true;
+
+            try {
+                const response = await fetch('/api/targets/bulk', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        input: hostname,
+                        type: 'hostname',
+                        description: description
+                    })
+                });
+
+                const result = await response.json();
+
+                if (response.ok) {
+                    e.target.reset();
+                    fetchTargets();
+                    alert(`Target added successfully!\nHostname: ${result.hostname}\nResolved IP: ${result.ip_address}`);
+                } else {
+                    alert(`Failed to add target: ${result.error || 'Unknown error'}`);
+                }
+            } catch (error) {
+                console.error('Error adding target from hostname:', error);
+                alert('Error adding target: ' + error.message);
+            } finally {
+                submitBtn.innerHTML = originalText;
+                submitBtn.disabled = false;
             }
         });
     }

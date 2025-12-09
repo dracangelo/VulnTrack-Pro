@@ -2,6 +2,9 @@ import subprocess
 import re
 import threading
 import json
+import os
+import tempfile
+import xml.etree.ElementTree as ET
 from datetime import datetime
 
 class NmapRealtimeParser:
@@ -35,6 +38,13 @@ class NmapRealtimeParser:
         # Add OS detection if not present (requires root)
         if '-O' not in arguments:
             arguments += ' -O'
+        
+        # Create temp file for XML output
+        fd, xml_output_path = tempfile.mkstemp(suffix='.xml')
+        os.close(fd)
+        
+        # Add XML output argument
+        arguments += f' -oX {xml_output_path}'
         
         # Build command
         cmd = ['nmap'] + arguments.split() + [target]
@@ -73,16 +83,24 @@ class NmapRealtimeParser:
             # Wait for process to complete
             self.process.wait()
             
-            # Parse final results
-            results = self._parse_final_results(scan_data['raw_output'])
+            # Parse final results from XML
+            results = self._parse_xml_results(xml_output_path, scan_data['raw_output'])
             
-            # Extract OS information
-            results['os_detection'] = self._parse_os_detection(scan_data['raw_output'])
-            
-            # Extract CPE identifiers
-            results['cpe_list'] = self._extract_cpe_identifiers(scan_data['raw_output'])
+            # Clean up
+            if os.path.exists(xml_output_path):
+                os.remove(xml_output_path)
             
             return results
+            
+        except Exception as e:
+            import traceback
+            traceback.print_exc()
+            print(f"Nmap real-time scan error: {e}")
+            if self.process:
+                self.process.terminate()
+            if os.path.exists(xml_output_path):
+                os.remove(xml_output_path)
+            return {'error': str(e)}
             
         except Exception as e:
             print(f"Nmap real-time scan error: {e}")
@@ -139,8 +157,86 @@ class NmapRealtimeParser:
         if done_match:
             self._emit_progress(scan_id, 100, 'Scan completed', app_context)
     
+    def _parse_xml_results(self, xml_path, raw_output):
+        """Parse Nmap XML output into structured format"""
+        results = {
+            'hosts': [],
+            'summary': {},
+            'raw_output': raw_output
+        }
+        
+        try:
+            tree = ET.parse(xml_path)
+            root = tree.getroot()
+            
+            for host in root.findall('host'):
+                host_info = {
+                    'host': '',
+                    'ports': []
+                }
+                
+                # Get address
+                address = host.find('address')
+                if address is not None:
+                    host_info['host'] = address.get('addr')
+                
+                # Get ports
+                ports = host.find('ports')
+                if ports is not None:
+                    for port in ports.findall('port'):
+                        port_id = port.get('portid')
+                        protocol = port.get('protocol')
+                        
+                        state_el = port.find('state')
+                        state = state_el.get('state') if state_el is not None else 'unknown'
+                        
+                        service_el = port.find('service')
+                        service_name = service_el.get('name') if service_el is not None else 'unknown'
+                        product = service_el.get('product', '') if service_el is not None else ''
+                        version = service_el.get('version', '') if service_el is not None else ''
+                        
+                        # Get CPEs
+                        cpes = []
+                        if service_el is not None:
+                            for cpe in service_el.findall('cpe'):
+                                cpes.append(cpe.text)
+                        
+                        # Get scripts
+                        scripts = {}
+                        for script in port.findall('script'):
+                            script_id = script.get('id')
+                            output = script.get('output')
+                            scripts[script_id] = output
+                        
+                        host_info['ports'].append({
+                            'port': int(port_id),
+                            'protocol': protocol,
+                            'state': state,
+                            'service': service_name,
+                            'product': product,
+                            'version': version,
+                            'cpe': cpes[0] if cpes else '',
+                            'script': scripts
+                        })
+                
+                results['hosts'].append(host_info)
+                
+            # Extract summary from runstats
+            runstats = root.find('runstats')
+            if runstats is not None:
+                finished = runstats.find('finished')
+                if finished is not None:
+                    results['summary']['text'] = finished.get('summary')
+                    
+        except Exception as e:
+            print(f"Error parsing XML: {e}")
+            # Fallback to text parsing if XML fails
+            return self._parse_final_results(raw_output)
+            
+        return results
+
     def _parse_final_results(self, raw_output):
-        """Parse final Nmap output into structured format"""
+        """Legacy text parser fallback"""
         results = {
             'hosts': [],
             'summary': {},
@@ -186,33 +282,42 @@ class NmapRealtimeParser:
         """Emit host discovery event"""
         from api.extensions import socketio
         
-        socketio.emit('nmap_host_discovered', {
-            'scan_id': scan_id,
-            'host': host,
-            'total_hosts': total_hosts,
-            'timestamp': datetime.utcnow().isoformat()
-        }, room=f'scan_{scan_id}', namespace='/scan-progress')
+        try:
+            socketio.emit('nmap_host_discovered', {
+                'scan_id': scan_id,
+                'host': host,
+                'total_hosts': total_hosts,
+                'timestamp': datetime.utcnow().isoformat()
+            }, room=f'scan_{scan_id}', namespace='/scan-progress')
+        except Exception as e:
+            print(f"SocketIO emit error: {e}")
     
     def _emit_port_discovered(self, scan_id, port_info, total_ports, app_context):
         """Emit port discovery event"""
         from api.extensions import socketio
         
-        socketio.emit('nmap_port_discovered', {
-            'scan_id': scan_id,
-            'port': port_info,
-            'total_open_ports': total_ports,
-            'timestamp': datetime.utcnow().isoformat()
-        }, room=f'scan_{scan_id}', namespace='/scan-progress')
+        try:
+            socketio.emit('nmap_port_discovered', {
+                'scan_id': scan_id,
+                'port': port_info,
+                'total_open_ports': total_ports,
+                'timestamp': datetime.utcnow().isoformat()
+            }, room=f'scan_{scan_id}', namespace='/scan-progress')
+        except Exception as e:
+            print(f"SocketIO emit error: {e}")
     
     def _emit_timing_update(self, scan_id, elapsed, app_context):
         """Emit timing update"""
         from api.extensions import socketio
         
-        socketio.emit('nmap_timing', {
-            'scan_id': scan_id,
-            'elapsed': elapsed,
-            'timestamp': datetime.utcnow().isoformat()
-        }, room=f'scan_{scan_id}', namespace='/scan-progress')
+        try:
+            socketio.emit('nmap_timing', {
+                'scan_id': scan_id,
+                'elapsed': elapsed,
+                'timestamp': datetime.utcnow().isoformat()
+            }, room=f'scan_{scan_id}', namespace='/scan-progress')
+        except Exception as e:
+            print(f"SocketIO emit error: {e}")
 
     def _emit_log(self, scan_id, message, app_context):
         """Emit raw log message"""
@@ -221,11 +326,14 @@ class NmapRealtimeParser:
         if not message:
             return
 
-        socketio.emit('scan_log', {
-            'scan_id': scan_id,
-            'message': message,
-            'timestamp': datetime.utcnow().isoformat()
-        }, room=f'scan_{scan_id}', namespace='/scan-progress')
+        try:
+            socketio.emit('scan_log', {
+                'scan_id': scan_id,
+                'message': message,
+                'timestamp': datetime.utcnow().isoformat()
+            }, room=f'scan_{scan_id}', namespace='/scan-progress')
+        except Exception as e:
+            print(f"SocketIO emit error: {e}")
     
     def cancel(self):
         """Cancel the running scan"""
@@ -360,7 +468,7 @@ class NmapRealtimeParser:
                         'product': port.get('product', ''),
                         'version': port.get('version', ''),
                         'cpe': port.get('cpe', ''),
-                        'script': {}
+                        'script': port.get('script', {})
                     })
         
         return normalized

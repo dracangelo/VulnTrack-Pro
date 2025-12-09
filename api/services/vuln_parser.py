@@ -1,5 +1,6 @@
 import json
 import logging
+import re
 
 # Configure logger
 logger = logging.getLogger(__name__)
@@ -51,11 +52,39 @@ class VulnParser:
                 # Check for script output which contains actual vulns
                 if item.get('script'):
                     for script_id, output in item['script'].items():
+                        # Extract CVEs
+                        cve_ids = re.findall(r'CVE-\d{4}-\d+', output)
+                        cve_id = cve_ids[0] if cve_ids else None
+                        
+                        # Extract Severity/Risk Factor
+                        severity = 'Medium' # Default
+                        if 'Risk factor: High' in output or 'High' in output: # Simple heuristic
+                            severity = 'High'
+                        elif 'Risk factor: Critical' in output or 'Critical' in output:
+                            severity = 'Critical'
+                        elif 'Risk factor: Low' in output or 'Low' in output:
+                            severity = 'Low'
+                            
+                        # Extract CVSS
+                        cvss_score = None
+                        cvss_match = re.search(r'CVSS:?\s*(\d+\.\d+)', output)
+                        if cvss_match:
+                            try:
+                                cvss_score = float(cvss_match.group(1))
+                                # Update severity based on CVSS if found
+                                if cvss_score >= 9.0: severity = 'Critical'
+                                elif cvss_score >= 7.0: severity = 'High'
+                                elif cvss_score >= 4.0: severity = 'Medium'
+                                else: severity = 'Low'
+                            except ValueError:
+                                pass
+
                         vuln = {
                             'name': f"Nmap Script: {script_id}",
                             'description': output,
-                            'severity': 'Medium',  # Default for scripts, ideally map script_id to severity
-                            'cve_id': None,  # Would need regex extraction from output
+                            'severity': severity,
+                            'cve_id': cve_id,
+                            'cvss_score': cvss_score,
                             'remediation': 'Check Nmap script output for details.',
                             'port': port,
                             'protocol': protocol,
