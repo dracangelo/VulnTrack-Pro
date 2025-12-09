@@ -265,6 +265,8 @@ document.addEventListener('DOMContentLoaded', () => {
             fetchTeams();
         } else if (sectionId === 'users') {
             fetchUsers();
+        } else if (sectionId === 'profile') {
+            fetchProfile();
         }
     }
 

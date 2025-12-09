@@ -600,58 +600,149 @@
         </section>
 
         <!-- Profile Section -->
+        <!-- Profile Section -->
         <section id="profile-section" class="content-section hidden">
             <div class="page-header">
                 <div class="breadcrumb">Home / Profile</div>
                 <h1 class="page-title">My Profile</h1>
             </div>
 
-            <div class="card" style="max-width: 600px;">
-                <div class="card-header">
-                    <h3 class="card-title">User Information</h3>
-                    <button class="btn btn-secondary" onclick="toggleEditProfile()">
-                        <i class="fas fa-edit"></i> Edit Profile
-                    </button>
-                </div>
-
-                <!-- View Mode -->
-                <div id="profileViewMode">
-                    <div style="display: grid; grid-template-columns: 120px 1fr; gap: 1rem; margin-bottom: 1rem;">
-                        <div style="color: var(--text-secondary);">Username:</div>
-                        <div id="profileUsername" style="font-weight: 600;">Loading...</div>
-
-                        <div style="color: var(--text-secondary);">Email:</div>
-                        <div id="profileEmail">Loading...</div>
-
-                        <div style="color: var(--text-secondary);">Role:</div>
-                        <div id="profileRole"><span class="badge badge-info">Loading...</span></div>
-
-                        <div style="color: var(--text-secondary);">Joined:</div>
-                        <div id="profileJoined">Loading...</div>
+            <div class="profile-container">
+                <!-- Sidebar -->
+                <div class="profile-sidebar">
+                    <div class="profile-nav-item active" onclick="switchProfileTab('info')">
+                        <i class="fas fa-user"></i> Profile Info
+                    </div>
+                    <div class="profile-nav-item" onclick="switchProfileTab('settings')">
+                        <i class="fas fa-cog"></i> Settings
+                    </div>
+                    <div class="profile-nav-item" onclick="switchProfileTab('notifications')">
+                        <i class="fas fa-bell"></i> Notifications
                     </div>
                 </div>
 
-                <!-- Edit Mode -->
-                <div id="profileEditMode" class="hidden">
-                    <form onsubmit="updateProfile(event)">
-                        <div class="form-group">
-                            <label class="form-label">Username</label>
-                            <input type="text" class="form-input" id="editUsername" required>
+                <!-- Content Area -->
+                <div class="profile-content-card">
+                    <!-- Profile Info Tab -->
+                    <div id="profileTab-info">
+                        <!-- Header with Avatar -->
+                        <div class="profile-header">
+                            <div class="profile-avatar-large" id="profileAvatarLarge">?</div>
+                            <div class="profile-info">
+                                <h2 id="profileNameDisplay">Loading...</h2>
+                                <p id="profileRoleDisplay">Loading...</p>
+                            </div>
                         </div>
-                        <div class="form-group">
-                            <label class="form-label">Email</label>
-                            <input type="email" class="form-input" id="editEmail" required>
+
+                        <!-- Profile Info Form -->
+                        <h3 style="margin-bottom: 1rem; color: var(--text-primary); font-size: 1.1rem;">Profile
+                            Information</h3>
+                        <form onsubmit="updateProfileInfo(event)" style="margin-bottom: 2rem;">
+                            <div class="grid-2">
+                                <div class="form-group">
+                                    <label class="form-label">Username</label>
+                                    <input type="text" class="form-input" id="editUsername" required>
+                                </div>
+                                <div class="form-group">
+                                    <label class="form-label">Email</label>
+                                    <input type="email" class="form-input" id="editEmail" required>
+                                </div>
+                            </div>
+                            <div class="form-group">
+                                <label class="form-label">Role</label>
+                                <input type="text" class="form-input" id="readOnlyRole" disabled
+                                    style="opacity: 0.7; cursor: not-allowed;">
+                            </div>
+                            <button type="submit" class="btn btn-primary">Save Info</button>
+                        </form>
+
+                        <!-- Change Password Form -->
+                        <h3
+                            style="margin-bottom: 1rem; color: var(--text-primary); font-size: 1.1rem; border-top: 1px solid var(--border-color); padding-top: 1.5rem;">
+                            Change Password</h3>
+                        <form onsubmit="updatePassword(event)" style="margin-bottom: 2rem;">
+                            <div class="form-group">
+                                <label class="form-label">Current Password</label>
+                                <input type="password" class="form-input" id="currentPassword" required>
+                            </div>
+                            <div class="grid-2">
+                                <div class="form-group">
+                                    <label class="form-label">New Password</label>
+                                    <input type="password" class="form-input" id="editPassword" required>
+                                </div>
+                                <div class="form-group">
+                                    <label class="form-label">Confirm New Password</label>
+                                    <input type="password" class="form-input" id="confirmPassword" required>
+                                </div>
+                            </div>
+                            <button type="submit" class="btn btn-primary">Update Password</button>
+                        </form>
+
+                        <!-- Account Activity Log -->
+                        <h3
+                            style="margin-bottom: 1rem; color: var(--text-primary); font-size: 1.1rem; border-top: 1px solid var(--border-color); padding-top: 1.5rem;">
+                            Account Activity</h3>
+                        <div class="table-container">
+                            <table class="table">
+                                <thead>
+                                    <tr>
+                                        <th>Action</th>
+                                        <th>Details</th>
+                                        <th>Time</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="profileActivityLog">
+                                    <!-- Populated by JS -->
+                                </tbody>
+                            </table>
                         </div>
-                        <div class="form-group">
-                            <label class="form-label">New Password (leave blank to keep current)</label>
-                            <input type="password" class="form-input" id="editPassword" placeholder="New Password">
+                    </div>
+
+                    <!-- Settings Tab (Now mostly empty as password moved, maybe keep for future) -->
+                    <div id="profileTab-settings" class="hidden">
+                        <h3 style="margin-bottom: 1.5rem; color: var(--text-primary);">General Settings</h3>
+                        <p style="color: var(--text-secondary);">More settings coming soon...</p>
+                    </div>
+
+                    <!-- Notifications Tab -->
+                    <div id="profileTab-notifications" class="hidden">
+                        <h3 style="margin-bottom: 1.5rem; color: var(--text-primary);">Notification Preferences</h3>
+                        <div class="form-group flex-between">
+                            <div>
+                                <div style="font-weight: 600; color: var(--text-primary);">Email Notifications</div>
+                                <div style="font-size: 0.875rem; color: var(--text-secondary);">Receive updates via
+                                    email</div>
+                            </div>
+                            <div class="toggle active" onclick="this.classList.toggle('active')"></div>
                         </div>
-                        <div class="flex gap-4">
-                            <button type="button" class="btn btn-secondary"
-                                onclick="toggleEditProfile()">Cancel</button>
-                            <button type="submit" class="btn btn-primary">Save Changes</button>
+                        <div class="form-group flex-between">
+                            <div>
+                                <div style="font-weight: 600; color: var(--text-primary);">In-App Notifications</div>
+                                <div style="font-size: 0.875rem; color: var(--text-secondary);">Show notifications in
+                                    the app</div>
+                            </div>
+                            <div class="toggle active" onclick="this.classList.toggle('active')"></div>
                         </div>
-                    </form>
+
+                        <!-- Account Activity Log (Duplicate) -->
+                        <h3
+                            style="margin-bottom: 1rem; color: var(--text-primary); font-size: 1.1rem; border-top: 1px solid var(--border-color); padding-top: 1.5rem; margin-top: 2rem;">
+                            Account Activity</h3>
+                        <div class="table-container">
+                            <table class="table">
+                                <thead>
+                                    <tr>
+                                        <th>Action</th>
+                                        <th>Details</th>
+                                        <th>Time</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="notificationActivityLog">
+                                    <!-- Populated by JS -->
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
                 </div>
             </div>
         </section>

@@ -72,13 +72,34 @@ def get_current_user():
     
     return jsonify(user.to_dict())
 
+@auth_bp.route('/activity')
+@jwt_required()
+def get_activity_log():
+    """Get current user's activity log"""
+    from api.models.activity_log import ActivityLog
+    
+    current_user_id = get_jwt_identity()
+    
+    # Get recent activity (last 20)
+    activities = ActivityLog.query.filter_by(user_id=current_user_id)\
+        .order_by(ActivityLog.timestamp.desc())\
+        .limit(20)\
+        .all()
+        
+    return jsonify([{
+        'action': a.action,
+        'details': a.details,
+        'timestamp': a.timestamp.isoformat()
+    } for a in activities])
+
 @auth_bp.route('/me', methods=['PUT'])
 @jwt_required()
 def update_current_user():
     """Update current user info"""
-    from werkzeug.security import generate_password_hash
+    from werkzeug.security import generate_password_hash, check_password_hash
     from api.middleware.input_validation import validate_password_complexity, validate_email
     from api.extensions import db
+    from api.models.activity_log import ActivityLog
     
     current_user_id = get_jwt_identity()
     user = User.query.get(current_user_id)
@@ -104,10 +125,34 @@ def update_current_user():
         
     # Update password
     if 'password' in data and data['password']:
+        # Require current password
+        if not data.get('current_password'):
+            return jsonify({'error': 'Current password is required to set a new password'}), 400
+            
+        if not user.password_hash or not check_password_hash(user.password_hash, data['current_password']):
+            # Log failed attempt
+            log = ActivityLog(
+                user_id=user.id,
+                action='failed_password_change',
+                details='Incorrect current password'
+            )
+            db.session.add(log)
+            db.session.commit()
+            return jsonify({'error': 'Incorrect current password'}), 401
+            
         is_valid, error_message = validate_password_complexity(data['password'])
         if not is_valid:
             return jsonify({'error': error_message}), 400
+            
         user.password_hash = generate_password_hash(data['password'])
+        
+        # Log success
+        log = ActivityLog(
+            user_id=user.id,
+            action='password_change',
+            details='Password updated successfully'
+        )
+        db.session.add(log)
         
     try:
         db.session.commit()
@@ -131,6 +176,8 @@ def logout():
 def login():
     """Username/Password login"""
     from werkzeug.security import check_password_hash
+    from api.models.activity_log import ActivityLog
+    from api.extensions import db
     
     data = request.get_json()
     if not data or 'username' not in data or 'password' not in data:
@@ -139,10 +186,29 @@ def login():
     user = User.query.filter_by(username=data['username']).first()
     
     if not user or not user.password_hash or not check_password_hash(user.password_hash, data['password']):
+        # Log failed login if user exists
+        if user:
+            log = ActivityLog(
+                user_id=user.id,
+                action='failed_login',
+                details='Invalid credentials'
+            )
+            db.session.add(log)
+            db.session.commit()
+            
         return jsonify({'error': 'Invalid credentials'}), 401
         
     if not user.is_active:
         return jsonify({'error': 'Account is disabled'}), 403
+        
+    # Log successful login
+    log = ActivityLog(
+        user_id=user.id,
+        action='successful_login',
+        details='User logged in'
+    )
+    db.session.add(log)
+    db.session.commit()
         
     access_token = create_access_token(identity=str(user.id))
     return jsonify({
