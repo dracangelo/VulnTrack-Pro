@@ -16,23 +16,44 @@ def get_user(id):
 
 @user_bp.route('/', methods=['POST'])
 def create_user():
+    from api.middleware.input_validation import validate_password_complexity, validate_email
+    from werkzeug.security import generate_password_hash
+    
     data = request.get_json()
-    if not data or 'username' not in data or 'email' not in data:
-        return jsonify({'error': 'Invalid data'}), 400
+    if not data or 'username' not in data or 'email' not in data or 'password' not in data:
+        return jsonify({'error': 'Missing required fields: username, email, password'}), 400
     
-    # In a real app, we would hash the password here.
-    # For now, just storing the hash field as is or ignoring password for simplicity if not provided.
-    # But let's assume password is sent and we should hash it (mocking hash for now or just storing plain text if strictly following "simple" instruction, but better to be safe-ish).
-    # The prompt says "Users (simple)".
+    # Validate email format
+    if not validate_email(data['email']):
+        return jsonify({'error': 'Invalid email format'}), 400
     
-    new_user = User(username=data['username'], email=data['email'])
-    if 'password' in data:
-        new_user.password_hash = data['password'] # TODO: Hash this!
-        
+    # Validate password complexity
+    is_valid, error_message = validate_password_complexity(data['password'])
+    if not is_valid:
+        return jsonify({'error': error_message}), 400
+    
+    # Check if username or email already exists
+    existing_user = User.query.filter(
+        (User.username == data['username']) | (User.email == data['email'])
+    ).first()
+    if existing_user:
+        return jsonify({'error': 'Username or email already exists'}), 409
+    
+    # Create new user with hashed password
+    new_user = User(
+        username=data['username'],
+        email=data['email'],
+        password_hash=generate_password_hash(data['password'])
+    )
+    
     db.session.add(new_user)
     db.session.commit()
     
-    return jsonify({'message': 'User created', 'id': new_user.id}), 201
+    return jsonify({
+        'message': 'User created successfully',
+        'id': new_user.id,
+        'username': new_user.username
+    }), 201
 
 @user_bp.route('/<int:id>', methods=['PUT'])
 def update_user(id):

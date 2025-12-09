@@ -50,6 +50,7 @@ def create_app(config_class=Config):
     from api.routes.ml_routes import ml_bp
     from api.routes.auth_routes import auth_bp
     from api.routes.role_routes import role_bp
+    from api.routes.audit_routes import audit_bp
     
     app.register_blueprint(target_bp)
     app.register_blueprint(scan_bp)
@@ -65,6 +66,7 @@ def create_app(config_class=Config):
     app.register_blueprint(ml_bp)
     app.register_blueprint(auth_bp)
     app.register_blueprint(role_bp)
+    app.register_blueprint(audit_bp)
     
     # Register WebSocket events
     from api import socket_events
@@ -80,6 +82,10 @@ def create_app(config_class=Config):
     # Configure Logging
     from api.logger import configure_logging
     configure_logging(app)
+    
+    # Initialize Security Middleware
+    from api.middleware import init_all_middleware
+    init_all_middleware(app)
     
     # Register Error Handlers
     from api.error_handlers import register_error_handlers
