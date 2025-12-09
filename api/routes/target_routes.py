@@ -63,37 +63,62 @@ def create_bulk_targets():
             if not validate_cidr(input_value):
                 return jsonify({'error': f'Invalid CIDR notation: {input_value}'}), 400
             
-            ip_addresses = expand_cidr(input_value)
+            # Check if user wants to keep as single target
+            keep_as_single = data.get('keep_as_single', False)
             
-            # Limit to prevent abuse (max 1024 IPs)
-            if len(ip_addresses) > 1024:
-                return jsonify({'error': f'CIDR range too large. Maximum 1024 IPs allowed. This range contains {len(ip_addresses)} IPs.'}), 400
-            
-            # Create targets for each IP
-            for ip in ip_addresses:
-                # Check if target already exists
-                existing = Target.query.filter_by(ip_address=ip).first()
+            if keep_as_single:
+                # Create single target with CIDR notation
+                existing = Target.query.filter_by(ip_address=input_value).first()
                 if existing:
-                    errors.append(f'{ip} already exists')
-                    continue
+                    return jsonify({'error': f'Target with CIDR {input_value} already exists (ID: {existing.id})'}), 409
                 
                 target = Target(
-                    name=f'{input_value} - {ip}',
-                    ip_address=ip,
-                    description=description or f'Auto-created from CIDR: {input_value}',
+                    name=data.get('name', input_value),
+                    ip_address=input_value,
+                    description=description or f'CIDR range: {input_value}',
                     group_id=group_id
                 )
                 db.session.add(target)
-                created_targets.append(ip)
-            
-            db.session.commit()
-            
-            return jsonify({
-                'message': f'Created {len(created_targets)} targets from CIDR range',
-                'created': len(created_targets),
-                'errors': errors,
-                'targets': created_targets
-            }), 201
+                db.session.commit()
+                
+                return jsonify({
+                    'message': 'CIDR target created',
+                    'id': target.id,
+                    'cidr': input_value
+                }), 201
+            else:
+                # Expand CIDR to individual IPs
+                ip_addresses = expand_cidr(input_value)
+                
+                # Limit to prevent abuse (max 1024 IPs)
+                if len(ip_addresses) > 1024:
+                    return jsonify({'error': f'CIDR range too large. Maximum 1024 IPs allowed. This range contains {len(ip_addresses)} IPs.'}), 400
+                
+                # Create targets for each IP
+                for ip in ip_addresses:
+                    # Check if target already exists
+                    existing = Target.query.filter_by(ip_address=ip).first()
+                    if existing:
+                        errors.append(f'{ip} already exists')
+                        continue
+                    
+                    target = Target(
+                        name=f'{input_value} - {ip}',
+                        ip_address=ip,
+                        description=description or f'Auto-created from CIDR: {input_value}',
+                        group_id=group_id
+                    )
+                    db.session.add(target)
+                    created_targets.append(ip)
+                
+                db.session.commit()
+                
+                return jsonify({
+                    'message': f'Created {len(created_targets)} targets from CIDR range',
+                    'created': len(created_targets),
+                    'errors': errors,
+                    'targets': created_targets
+                }), 201
             
         elif input_type == 'hostname':
             # Validate hostname
@@ -179,4 +204,37 @@ def delete_target(id):
     db.session.delete(target)
     db.session.commit()
     return jsonify({'message': 'Target deleted'})
+
+@target_bp.route('/bulk-delete', methods=['POST'])
+def bulk_delete_targets():
+    """
+    Delete multiple targets at once.
+    
+    Expected JSON:
+    {
+        "target_ids": [1, 2, 3, 4]
+    }
+    """
+    data = request.get_json()
+    
+    if not data or 'target_ids' not in data:
+        return jsonify({'error': 'Missing required field: target_ids'}), 400
+    
+    target_ids = data['target_ids']
+    
+    if not isinstance(target_ids, list) or len(target_ids) == 0:
+        return jsonify({'error': 'target_ids must be a non-empty list'}), 400
+    
+    try:
+        # Delete all targets with the given IDs
+        deleted_count = Target.query.filter(Target.id.in_(target_ids)).delete(synchronize_session=False)
+        db.session.commit()
+        
+        return jsonify({
+            'message': f'Successfully deleted {deleted_count} target(s)',
+            'deleted_count': deleted_count
+        }), 200
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({'error': f'Error deleting targets: {str(e)}'}), 500
 

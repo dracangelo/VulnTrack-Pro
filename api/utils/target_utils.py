@@ -4,6 +4,7 @@ Utility functions for target management including CIDR expansion and hostname re
 import ipaddress
 import socket
 import re
+from urllib.parse import urlparse
 
 
 def validate_cidr(cidr_notation):
@@ -57,10 +58,10 @@ def expand_cidr(cidr_notation):
 
 def validate_hostname(hostname):
     """
-    Validate hostname format.
+    Validate hostname format. Accepts plain hostnames or URLs with protocols.
     
     Args:
-        hostname (str): Hostname to validate
+        hostname (str): Hostname or URL to validate
     
     Returns:
         bool: True if valid, False otherwise
@@ -68,13 +69,33 @@ def validate_hostname(hostname):
     if not hostname or len(hostname) > 253:
         return False
     
+    # Strip protocol if present (http://, https://, etc.)
+    if '://' in hostname:
+        try:
+            # Extract hostname from URL
+            parsed = urlparse(hostname)
+            hostname = parsed.netloc or parsed.path
+            # Remove port if present
+            if ':' in hostname:
+                hostname = hostname.split(':')[0]
+        except Exception:
+            return False
+    
     # Remove trailing dot if present
     if hostname.endswith('.'):
         hostname = hostname[:-1]
     
+    # Remove path if present (for cases like example.com/path)
+    if '/' in hostname:
+        hostname = hostname.split('/')[0]
+    
+    # Check if it's empty after extraction
+    if not hostname:
+        return False
+    
     # Hostname regex pattern
     pattern = re.compile(
-        r'^(?!-)[A-Za-z0-9-]{1,63}(?<!-)(\\.(?!-)[A-Za-z0-9-]{1,63}(?<!-))*$'
+        r'^(?!-)[A-Za-z0-9-]{1,63}(?<!-)(\.(?!-)[A-Za-z0-9-]{1,63}(?<!-))*$'
     )
     
     return bool(pattern.match(hostname))
@@ -82,10 +103,10 @@ def validate_hostname(hostname):
 
 def resolve_hostname(hostname):
     """
-    Resolve hostname to IP address.
+    Resolve hostname to IP address. Accepts plain hostnames or URLs with protocols.
     
     Args:
-        hostname (str): Hostname to resolve
+        hostname (str): Hostname or URL to resolve
     
     Returns:
         str: Resolved IP address
@@ -93,6 +114,29 @@ def resolve_hostname(hostname):
     Raises:
         ValueError: If hostname cannot be resolved
     """
+    # Strip protocol and extract hostname if URL is provided
+    original_input = hostname
+    if '://' in hostname:
+        try:
+            parsed = urlparse(hostname)
+            hostname = parsed.netloc or parsed.path
+            # Remove port if present
+            if ':' in hostname:
+                hostname = hostname.split(':')[0]
+        except Exception:
+            pass
+    
+    # Remove path if present
+    if '/' in hostname:
+        hostname = hostname.split('/')[0]
+    
+    # Remove trailing dot if present
+    if hostname.endswith('.'):
+        hostname = hostname[:-1]
+    
+    if not hostname:
+        raise ValueError(f"Could not extract hostname from: {original_input}")
+    
     try:
         # Get address info
         addr_info = socket.getaddrinfo(hostname, None, socket.AF_UNSPEC, socket.SOCK_STREAM)

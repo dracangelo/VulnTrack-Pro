@@ -182,6 +182,11 @@ document.addEventListener('DOMContentLoaded', () => {
 
         targetList.innerHTML = targets.map(target => `
             <tr>
+                <td>
+                    <input type="checkbox" class="target-checkbox" value="${target.id}" 
+                           onchange="updateBulkDeleteButton()" 
+                           style="cursor: pointer; width: 18px; height: 18px;">
+                </td>
                 <td>${target.name || 'Unnamed'}</td>
                 <td><span class="badge badge-cyan">${target.ip_address}</span></td>
                 <td>${target.description || '-'}</td>
@@ -195,6 +200,11 @@ document.addEventListener('DOMContentLoaded', () => {
                 </td>
             </tr>
         `).join('');
+
+        // Reset select all checkbox
+        const selectAll = document.getElementById('selectAllTargets');
+        if (selectAll) selectAll.checked = false;
+        updateBulkDeleteButton();
     }
 
     // Queue Status Management
@@ -457,13 +467,14 @@ document.addEventListener('DOMContentLoaded', () => {
             e.preventDefault();
             const formData = new FormData(e.target);
             const data = {
+                input: formData.get('ip_address'),
+                type: 'ip',
                 name: formData.get('name') || formData.get('ip_address'),
-                ip_address: formData.get('ip_address'),
                 description: formData.get('description')
             };
 
             try {
-                const response = await fetch('/api/targets/', {
+                const response = await fetch('/api/targets/bulk', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify(data)
@@ -484,7 +495,7 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
 
-    // Add targets from CIDR range
+    // Add Range/CIDR Form
     const addRangeForm = document.getElementById('addRangeForm');
     if (addRangeForm) {
         addRangeForm.addEventListener('submit', async (e) => {
@@ -1485,6 +1496,81 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // Auto-refresh scans every 10 seconds
     setInterval(fetchScans, 10000);
+
+    // ========== Bulk Delete Functions ==========
+    window.toggleSelectAll = () => {
+        const selectAll = document.getElementById('selectAllTargets');
+        const checkboxes = document.querySelectorAll('.target-checkbox');
+        checkboxes.forEach(cb => cb.checked = selectAll.checked);
+        updateBulkDeleteButton();
+    };
+
+    window.updateBulkDeleteButton = () => {
+        const checkboxes = document.querySelectorAll('.target-checkbox:checked');
+        const bulkDeleteBtn = document.getElementById('bulkDeleteBtn');
+        const selectedCount = document.getElementById('selectedCount');
+
+        if (checkboxes.length > 0) {
+            bulkDeleteBtn.style.display = 'inline-block';
+            selectedCount.textContent = checkboxes.length;
+        } else {
+            bulkDeleteBtn.style.display = 'none';
+        }
+    };
+
+    window.bulkDeleteTargets = async () => {
+        const checkboxes = document.querySelectorAll('.target-checkbox:checked');
+        const targetIds = Array.from(checkboxes).map(cb => parseInt(cb.value));
+
+        if (targetIds.length === 0) {
+            alert('Please select at least one target to delete');
+            return;
+        }
+
+        if (!confirm(`Are you sure you want to delete ${targetIds.length} target(s)? This action cannot be undone.`)) {
+            return;
+        }
+
+        try {
+            const response = await fetch('/api/targets/bulk-delete', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ target_ids: targetIds })
+            });
+
+            const result = await response.json();
+
+            if (response.ok) {
+                alert(`Successfully deleted ${result.deleted_count} target(s)`);
+                fetchTargets();
+            } else {
+                alert('Failed to delete targets: ' + result.error);
+            }
+        } catch (error) {
+            console.error('Error deleting targets:', error);
+            alert('Error deleting targets: ' + error.message);
+        }
+    };
+
+    window.deleteTarget = async (targetId) => {
+        if (!confirm('Are you sure you want to delete this target?')) return;
+
+        try {
+            const response = await fetch(`/api/targets/${targetId}`, {
+                method: 'DELETE'
+            });
+
+            if (response.ok) {
+                alert('Target deleted successfully');
+                fetchTargets();
+            } else {
+                alert('Failed to delete target');
+            }
+        } catch (error) {
+            console.error('Error deleting target:', error);
+            alert('Error deleting target: ' + error.message);
+        }
+    };
 });
 
 // Mobile Menu Functions (outside DOMContentLoaded to be globally accessible)
