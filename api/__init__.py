@@ -9,7 +9,7 @@ def create_app(config_class=Config):
     app.config.from_object(config_class)
     
     # Initialize extensions
-    from api.extensions import db, migrate, limiter, socketio
+    from api.extensions import db, migrate, limiter, socketio, jwt
     
     # Initialize rate limiter (increased for development)
     app.config['RATELIMIT_DEFAULT'] = '500 per hour'  # Increased from 50 to 500
@@ -18,6 +18,7 @@ def create_app(config_class=Config):
     migrate.init_app(app, db)
     limiter.init_app(app)
     socketio.init_app(app)
+    jwt.init_app(app)
     
     # Initialize CORS (Allow all for development, restrict in prod)
     CORS(app)
@@ -53,6 +54,8 @@ def create_app(config_class=Config):
     from api.routes.audit_routes import audit_bp
     from api.routes.dashboard_routes import dashboard_bp
     from api.routes.search_routes import search_bp
+    from api.routes.team_routes import team_bp
+    from api.routes.collaboration_routes import collab_bp
     
     app.register_blueprint(target_bp)
     app.register_blueprint(scan_bp)
@@ -71,6 +74,8 @@ def create_app(config_class=Config):
     app.register_blueprint(audit_bp)
     app.register_blueprint(dashboard_bp)
     app.register_blueprint(search_bp)
+    app.register_blueprint(team_bp)
+    app.register_blueprint(collab_bp)
     
     # Register WebSocket events
     from api import socket_events

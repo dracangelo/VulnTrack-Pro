@@ -8,8 +8,10 @@ class TargetGroup(db.Model):
     name = db.Column(db.String(100), nullable=False)
     description = db.Column(db.String(255))
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    team_id = db.Column(db.Integer, db.ForeignKey('teams.id'), nullable=True)
     
     targets = db.relationship('Target', backref='group', lazy=True)
+    team = db.relationship('Team', backref='target_groups')
 
 class Target(db.Model):
     __tablename__ = 'targets'

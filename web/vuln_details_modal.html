@@ -18,6 +18,7 @@
             <button class="tab-btn active" onclick="switchVulnTab('details')" data-tab="details">Details</button>
             <button class="tab-btn" onclick="switchVulnTab('exploits')" data-tab="exploits">Exploits</button>
             <button class="tab-btn" onclick="switchVulnTab('nuclei')" data-tab="nuclei">Nuclei</button>
+            <button class="tab-btn" onclick="switchVulnTab('comments')" data-tab="comments">Comments</button>
         </div>
 
         <!-- Details Tab Content -->
@@ -156,6 +157,28 @@
             </h4>
             <div id="nucleiTemplatesList">
                 <!-- Templates will be populated here -->
+            </div>
+
+        </div>
+
+        <!-- Comments Tab Content -->
+        <div id="vulnTab-comments" class="tab-content hidden">
+            <h4 style="font-size: 0.875rem; color: var(--text-secondary); margin-bottom: 1rem;">COMMENTS</h4>
+
+            <!-- Add Comment Form -->
+            <form id="addCommentForm" onsubmit="addVulnComment(event)" style="margin-bottom: 2rem;">
+                <div class="form-group">
+                    <textarea class="form-textarea" id="newCommentText" rows="3" placeholder="Add a comment..."
+                        required></textarea>
+                </div>
+                <button type="submit" class="btn btn-primary">
+                    <i class="fas fa-paper-plane"></i> Post Comment
+                </button>
+            </form>
+
+            <!-- Comments List -->
+            <div id="vulnCommentsList" style="display: flex; flex-direction: column; gap: 1rem;">
+                <!-- Populated by JS -->
             </div>
         </div>
 

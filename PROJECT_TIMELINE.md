@@ -371,13 +371,13 @@
 
 ### v2.0 — Collaboration & Advanced Features (3-4 months)
 #### Collaboration Features
-- [ ] Comments on vulnerabilities
-- [ ] @mentions in comments
-- [ ] Activity feed (who did what)
-- [ ] Team workspaces
-- [ ] Shared dashboards
-- [ ] Collaborative ticket resolution
-- [ ] User roles and permissions expansion
+- [x] Comments on vulnerabilities
+- [x] @mentions in comments (via text processing)
+- [x] Activity feed (who did what)
+- [x] Team workspaces
+- [x] Shared dashboards
+- [x] Collaborative ticket resolution
+- [x] User roles and permissions expansion
 
 #### API & Automation
 - [ ] Pagination for all list endpoints

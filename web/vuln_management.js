@@ -582,3 +582,91 @@ window.triggerCreateTicket = async function () {
         }, 2000);
     }
 };
+
+// ========== Comments Management ==========
+
+// Load comments for the current vulnerability
+window.loadVulnComments = async function () {
+    const vulnId = document.getElementById('vulnDetailInstanceId').value;
+    if (!vulnId) return;
+
+    try {
+        const response = await fetch(`/api/collaboration/comments/vulnerability/${vulnId}`);
+        const comments = await response.json();
+        renderComments(comments);
+    } catch (error) {
+        console.error('Error fetching comments:', error);
+    }
+};
+
+function renderComments(comments) {
+    const list = document.getElementById('vulnCommentsList');
+    if (!list) return;
+
+    if (comments.length === 0) {
+        list.innerHTML = '<p style="color: var(--text-secondary); text-align: center;">No comments yet.</p>';
+        return;
+    }
+
+    list.innerHTML = comments.map(comment => `
+        <div style="background: var(--bg-secondary); padding: 1rem; border-radius: 0.5rem;">
+            <div style="display: flex; justify-content: space-between; margin-bottom: 0.5rem;">
+                <strong style="color: var(--accent-cyan);">${comment.user_name}</strong>
+                <span style="color: var(--text-secondary); font-size: 0.875rem;">${new Date(comment.created_at).toLocaleString()}</span>
+            </div>
+            <div style="color: var(--text-primary); white-space: pre-wrap;">${comment.text}</div>
+        </div>
+    `).join('');
+}
+
+// Add Comment
+window.addVulnComment = async function (event) {
+    event.preventDefault();
+    const vulnId = document.getElementById('vulnDetailInstanceId').value;
+    const text = document.getElementById('newCommentText').value;
+
+    if (!text.trim()) return;
+
+    try {
+        const response = await fetch('/api/collaboration/comments', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                text: text,
+                resource_type: 'vulnerability',
+                resource_id: parseInt(vulnId)
+            })
+        });
+
+        if (response.ok) {
+            document.getElementById('newCommentText').value = '';
+            loadVulnComments(); // Refresh list
+        } else {
+            const error = await response.json();
+            alert(`Failed to add comment: ${error.error}`);
+        }
+    } catch (error) {
+        console.error('Error adding comment:', error);
+        alert('Failed to add comment');
+    }
+};
+
+// Hook into tab switching to load comments
+window.switchVulnTab = function (tabName) {
+    // Update tab buttons
+    document.querySelectorAll('.tab-btn').forEach(btn => {
+        btn.classList.remove('active');
+        if (btn.dataset.tab === tabName) btn.classList.add('active');
+    });
+
+    // Show/hide content
+    document.querySelectorAll('.tab-content').forEach(content => {
+        content.classList.add('hidden');
+    });
+    document.getElementById(`vulnTab-${tabName}`).classList.remove('hidden');
+
+    // Load specific data
+    if (tabName === 'comments') {
+        loadVulnComments();
+    }
+};

@@ -1,5 +1,5 @@
 document.addEventListener('DOMContentLoaded', () => {
-    // Variable declarations - must be at top to avoid hoisting issues
+    // Variable declarations
     let queueRefreshInterval = null;
     let progressPollInterval = null;
     let currentScanId = null;
@@ -7,6 +7,206 @@ document.addEventListener('DOMContentLoaded', () => {
     let hostsDiscoveredCount = 0;
     let portsDiscoveredCount = 0;
     let openvasConfigs = [];
+
+    // ========== Authentication Logic ==========
+
+    // 1. Check for token in URL (OAuth callback)
+    const urlParams = new URLSearchParams(window.location.search);
+    const tokenFromUrl = urlParams.get('token');
+    const errorFromUrl = urlParams.get('error');
+
+    if (tokenFromUrl) {
+        localStorage.setItem('jwt_token', tokenFromUrl);
+        // Clean URL
+        window.history.replaceState({}, document.title, "/");
+    }
+
+    if (errorFromUrl) {
+        alert(`Login Failed: ${urlParams.get('message') || 'Unknown error'}`);
+        window.history.replaceState({}, document.title, "/");
+    }
+
+    // 2. Override fetch to add Authorization header
+    const originalFetch = window.fetch;
+    window.fetch = async function (url, options = {}) {
+        const token = localStorage.getItem('jwt_token');
+
+        // Skip adding header for auth endpoints to avoid loops if they don't need it (though most do)
+        // But mainly we need it for API calls.
+
+        if (token && url.startsWith('/api/')) {
+            options.headers = options.headers || {};
+            // If headers is not an instance of Headers, treat as object
+            if (!(options.headers instanceof Headers)) {
+                options.headers['Authorization'] = `Bearer ${token}`;
+            } else {
+                options.headers.append('Authorization', `Bearer ${token}`);
+            }
+        }
+
+        try {
+            const response = await originalFetch(url, options);
+
+            // Handle 401 Unauthorized
+            if (response.status === 401) {
+                console.warn('Unauthorized access. Redirecting to login.');
+                localStorage.removeItem('jwt_token');
+                showLoginModal();
+            }
+
+            return response;
+        } catch (error) {
+            throw error;
+        }
+    };
+
+    // 3. Check Authentication State
+    function checkAuth() {
+        const token = localStorage.getItem('jwt_token');
+        if (!token) {
+            showLoginModal();
+        } else {
+            // Optional: Verify token validity with /api/auth/me
+            // For now, we assume it's valid until 401
+            document.getElementById('loginModal').classList.add('hidden');
+        }
+    }
+
+    // 4. Login Modal Logic
+    async function showLoginModal() {
+        const modal = document.getElementById('loginModal');
+        modal.classList.remove('hidden');
+
+        const providersContainer = document.getElementById('loginProviders');
+        const loading = document.getElementById('loginLoading');
+
+        try {
+            // Use originalFetch to avoid 401 loop if this endpoint was protected (it shouldn't be)
+            // But actually, get_providers is likely public. Let's check auth_routes.py.
+            // It is NOT decorated with @jwt_required. Good.
+            const response = await originalFetch('/api/auth/providers');
+            const data = await response.json();
+
+            loading.style.display = 'none';
+            providersContainer.innerHTML = '';
+
+            if (data.providers && data.providers.length > 0) {
+                data.providers.forEach(provider => {
+                    const btn = document.createElement('button');
+                    btn.className = 'btn btn-secondary'; // Changed to secondary to distinguish from main action
+                    btn.style.width = '100%';
+                    btn.style.marginBottom = '0.5rem';
+                    btn.innerHTML = `<i class="fab fa-${provider.name}"></i> Sign in with ${provider.display_name}`;
+                    btn.onclick = () => {
+                        window.location.href = `/api/auth/login/${provider.name}`;
+                    };
+                    providersContainer.appendChild(btn);
+                });
+            } else {
+                // If no providers, hide the container or show message
+                // providersContainer.innerHTML = '<p>No OAuth providers configured.</p>';
+            }
+
+        } catch (error) {
+            console.error('Error fetching providers:', error);
+            loading.textContent = 'Failed to load login providers.';
+        }
+    }
+
+    // 5. Auth Form Handlers
+    window.handleLogin = async (e) => {
+        e.preventDefault();
+        const username = document.getElementById('loginUsername').value;
+        const password = document.getElementById('loginPassword').value;
+        const errorDiv = document.getElementById('loginError');
+
+        try {
+            const response = await originalFetch('/api/auth/login', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ username, password })
+            });
+
+            const data = await response.json();
+
+            if (response.ok) {
+                localStorage.setItem('jwt_token', data.token);
+                localStorage.setItem('user_info', JSON.stringify(data.user)); // Store user info
+                document.getElementById('loginModal').classList.add('hidden');
+                window.location.reload(); // Reload to refresh state
+            } else {
+                errorDiv.textContent = data.error || 'Login failed';
+                errorDiv.style.display = 'block';
+            }
+        } catch (error) {
+            errorDiv.textContent = 'Network error occurred';
+            errorDiv.style.display = 'block';
+        }
+    };
+
+    window.handleRegister = async (e) => {
+        e.preventDefault();
+        const username = document.getElementById('regUsername').value;
+        const email = document.getElementById('regEmail').value;
+        const password = document.getElementById('regPassword').value;
+        const errorDiv = document.getElementById('loginError');
+
+        try {
+            const response = await originalFetch('/api/auth/register', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ username, email, password })
+            });
+
+            const data = await response.json();
+
+            if (response.ok) {
+                localStorage.setItem('jwt_token', data.token);
+                localStorage.setItem('user_info', JSON.stringify(data.user));
+                document.getElementById('loginModal').classList.add('hidden');
+                window.location.reload();
+            } else {
+                errorDiv.textContent = data.error || 'Registration failed';
+                errorDiv.style.display = 'block';
+            }
+        } catch (error) {
+            errorDiv.textContent = 'Network error occurred';
+            errorDiv.style.display = 'block';
+        }
+    };
+
+    window.toggleAuthMode = (e) => {
+        e.preventDefault();
+        const loginForm = document.getElementById('loginForm');
+        const registerForm = document.getElementById('registerForm');
+        const title = document.getElementById('authModalTitle');
+        const subtitle = document.getElementById('authModalSubtitle');
+        const link = document.getElementById('authToggleLink');
+        const errorDiv = document.getElementById('loginError');
+
+        errorDiv.style.display = 'none';
+
+        if (loginForm.classList.contains('hidden')) {
+            // Switch to Login
+            loginForm.classList.remove('hidden');
+            registerForm.classList.add('hidden');
+            title.textContent = 'Welcome to VulnTrack';
+            subtitle.textContent = 'Please sign in to continue';
+            link.textContent = 'Need an account? Register';
+        } else {
+            // Switch to Register
+            loginForm.classList.add('hidden');
+            registerForm.classList.remove('hidden');
+            title.textContent = 'Create Account';
+            subtitle.textContent = 'Join VulnTrack today';
+            link.textContent = 'Already have an account? Sign In';
+        }
+    };
+
+    // Initial Auth Check
+    checkAuth();
+
+    // Navigation handling
 
     // Navigation handling
     const navItems = document.querySelectorAll('.nav-item');
@@ -57,6 +257,10 @@ document.addEventListener('DOMContentLoaded', () => {
             populateVulnTargets(); // Populate target dropdown
         } else if (sectionId === 'reports') {
             fetchReports();
+        } else if (sectionId === 'teams') {
+            fetchTeams();
+        } else if (sectionId === 'users') {
+            fetchUsers();
         }
     }
 
@@ -746,9 +950,43 @@ document.addEventListener('DOMContentLoaded', () => {
             const response = await fetch(url);
             const data = await response.json();
             renderDashboard(data, targetId);
+
+            // Also fetch activity feed
+            fetchActivityFeed();
         } catch (error) {
             console.error('Error fetching stats:', error);
         }
+    }
+
+    async function fetchActivityFeed() {
+        try {
+            const response = await fetch('/api/collaboration/activity');
+            const activities = await response.json();
+            renderActivityFeed(activities);
+        } catch (error) {
+            console.error('Error fetching activity feed:', error);
+        }
+    }
+
+    function renderActivityFeed(activities) {
+        const activityList = document.getElementById('recentActivity');
+        if (!activityList) return;
+
+        if (activities.length === 0) {
+            activityList.innerHTML = '<tr><td colspan="4" class="text-center">No recent activity</td></tr>';
+            return;
+        }
+
+        activityList.innerHTML = activities.map(activity => `
+            <tr>
+                <td>${new Date(activity.timestamp).toLocaleString()}</td>
+                <td>
+                    <strong>${activity.user}</strong> ${activity.action.replace('_', ' ')}
+                </td>
+                <td>${activity.target_type} #${activity.target_id}</td>
+                <td>${activity.details}</td>
+            </tr>
+        `).join('');
     }
 
     window.clearHostSelection = function () {

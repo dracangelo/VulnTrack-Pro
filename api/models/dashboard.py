@@ -12,6 +12,7 @@ class DashboardConfig(db.Model):
     user_id = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=False)
     name = db.Column(db.String(100), default='Default Dashboard')
     is_default = db.Column(db.Boolean, default=False)
+    team_id = db.Column(db.Integer, db.ForeignKey('teams.id'), nullable=True) # For shared dashboards
     
     # JSON blob to store the layout configuration
     # Example:
@@ -27,6 +28,7 @@ class DashboardConfig(db.Model):
     updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
 
     user = db.relationship('User', backref=db.backref('dashboard_configs', lazy=True))
+    team = db.relationship('Team', backref='shared_dashboards')
 
     def to_dict(self):
         return {

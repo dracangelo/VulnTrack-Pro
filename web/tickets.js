@@ -157,7 +157,6 @@ if (vulnId) {
     // Let's rewrite saveTicket to handle this properly.
     // See below for the full rewrite of saveTicket.
 }
-};
 
 // Redefining saveTicket to handle binding
 saveTicket = async function (event) {

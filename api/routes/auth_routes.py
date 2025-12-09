@@ -52,7 +52,7 @@ def oauth_callback(provider):
             return redirect('/?error=account_disabled')
         
         # Create JWT token
-        access_token = create_access_token(identity=user.id)
+        access_token = create_access_token(identity=str(user.id))
         
         # Redirect to frontend with token
         return redirect(f'/?token={access_token}')
@@ -79,3 +79,61 @@ def logout():
     # JWT tokens are stateless, so just return success
     # Client should delete the token
     return jsonify({'message': 'Logged out successfully'})
+
+@auth_bp.route('/login', methods=['POST'])
+def login():
+    """Username/Password login"""
+    from werkzeug.security import check_password_hash
+    
+    data = request.get_json()
+    if not data or 'username' not in data or 'password' not in data:
+        return jsonify({'error': 'Missing username or password'}), 400
+        
+    user = User.query.filter_by(username=data['username']).first()
+    
+    if not user or not user.password_hash or not check_password_hash(user.password_hash, data['password']):
+        return jsonify({'error': 'Invalid credentials'}), 401
+        
+    if not user.is_active:
+        return jsonify({'error': 'Account is disabled'}), 403
+        
+    access_token = create_access_token(identity=str(user.id))
+    return jsonify({
+        'token': access_token,
+        'user': user.to_dict()
+    })
+
+@auth_bp.route('/register', methods=['POST'])
+def register():
+    """Register a new user"""
+    from werkzeug.security import generate_password_hash
+    from api.extensions import db
+    from api.models.role import Role
+    
+    data = request.get_json()
+    if not data or 'username' not in data or 'password' not in data or 'email' not in data:
+        return jsonify({'error': 'Missing required fields'}), 400
+        
+    if User.query.filter((User.username == data['username']) | (User.email == data['email'])).first():
+        return jsonify({'error': 'Username or email already exists'}), 409
+        
+    # Default role: user (or whatever is default)
+    # For first user, maybe make admin? Or just default to 'user'
+    default_role = Role.query.filter_by(name='user').first()
+    
+    new_user = User(
+        username=data['username'],
+        email=data['email'],
+        password_hash=generate_password_hash(data['password']),
+        role=default_role
+    )
+    
+    db.session.add(new_user)
+    db.session.commit()
+    
+    access_token = create_access_token(identity=str(new_user.id))
+    return jsonify({
+        'message': 'User registered successfully',
+        'token': access_token,
+        'user': new_user.to_dict()
+    }), 201
