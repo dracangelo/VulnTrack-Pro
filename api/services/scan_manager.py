@@ -24,13 +24,14 @@ class ScanManager:
         from api.config import Config
         self.scan_queue = ScanQueue(max_concurrent=Config.MAX_CONCURRENT_SCANS)
 
-    def start_scan(self, target_id, scan_type, scanner_args=None, openvas_config_id=None):
+    def start_scan(self, target_id, scan_type, scanner_args=None, openvas_config_id=None, user_id=None):
         """
         Starts a scan in a background thread or queues it if at capacity.
         """
         # Create Scan record
         scan = Scan(
             target_id=target_id, 
+            user_id=user_id,
             scan_type=scan_type, 
             status='pending', 
             started_at=datetime.utcnow(),

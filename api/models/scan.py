@@ -9,6 +9,7 @@ class Scan(db.Model):
 
     id = db.Column(db.Integer, primary_key=True)
     target_id = db.Column(db.Integer, db.ForeignKey('targets.id'), nullable=False)
+    user_id = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=True)  # Owner of the scan
     scan_type = db.Column(db.String(50), nullable=False) # 'nmap', 'openvas', 'custom'
     status = db.Column(db.String(50), default='pending') # pending, running, completed, failed
     started_at = db.Column(db.DateTime)

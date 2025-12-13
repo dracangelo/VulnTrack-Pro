@@ -1,6 +1,7 @@
 from flask import Blueprint, jsonify, request
 from api.extensions import db
 from api.models.target import Target
+from flask_jwt_extended import jwt_required, get_jwt_identity
 from api.utils.target_utils import (
     validate_cidr, expand_cidr, 
     validate_hostname, resolve_hostname,
@@ -10,22 +11,72 @@ from api.utils.target_utils import (
 target_bp = Blueprint('targets', __name__, url_prefix='/api/targets')
 
 @target_bp.route('/', methods=['GET'])
+@jwt_required()
 def get_targets():
-    targets = Target.query.all()
-    return jsonify([{'id': t.id, 'name': t.name, 'ip_address': t.ip_address, 'description': t.description, 'group_id': t.group_id} for t in targets])
+    from api.models.user import User
+    from api.models.team import Team
+    
+    current_user_id = get_jwt_identity()
+    user = User.query.get(current_user_id)
+    
+    if not user:
+        return jsonify({'error': 'User not found'}), 404
+        
+    # Get user's team IDs
+    team_ids = [t.id for t in user.teams]
+    
+    # Filter targets:
+    # 1. Created by user
+    # 2. OR Belong to a group assigned to one of user's teams
+    from api.models.target import TargetGroup
+
+    # Filter targets:
+    # 1. Created by user
+    # 2. OR Belong to a group assigned to one of user's teams
+    targets = Target.query.outerjoin(TargetGroup).filter(
+        (Target.user_id == current_user_id) | 
+        (TargetGroup.team_id.in_(team_ids))
+    ).all()
+    
+    return jsonify([{'id': t.id, 'name': t.name, 'ip_address': t.ip_address, 'description': t.description, 'group_id': t.group_id, 'user_id': t.user_id} for t in targets])
 
 @target_bp.route('/<int:id>', methods=['GET'])
+@jwt_required()
 def get_target(id):
+    from api.models.user import User
+    
+    current_user_id = get_jwt_identity()
+    user = User.query.get(current_user_id)
+    
     target = Target.query.get_or_404(id)
-    return jsonify({'id': target.id, 'name': target.name, 'ip_address': target.ip_address, 'description': target.description, 'group_id': target.group_id})
+    
+    # Check permission
+    is_owner = target.user_id == int(current_user_id)
+    is_team_member = False
+    if target.group and target.group.team_id:
+        is_team_member = target.group.team_id in [t.id for t in user.teams]
+        
+    if not is_owner and not is_team_member:
+        return jsonify({'error': 'Access denied'}), 403
+        
+    return jsonify({'id': target.id, 'name': target.name, 'ip_address': target.ip_address, 'description': target.description, 'group_id': target.group_id, 'user_id': target.user_id})
 
 @target_bp.route('/', methods=['POST'])
+@jwt_required()
 def create_target():
     data = request.get_json()
     if not data or 'name' not in data or 'ip_address' not in data:
         return jsonify({'error': 'Invalid data'}), 400
     
-    new_target = Target(name=data['name'], ip_address=data['ip_address'], description=data.get('description'), group_id=data.get('group_id'))
+    current_user_id = get_jwt_identity()
+    
+    new_target = Target(
+        name=data['name'], 
+        ip_address=data['ip_address'], 
+        description=data.get('description'), 
+        group_id=data.get('group_id'),
+        user_id=current_user_id
+    )
     db.session.add(new_target)
     db.session.commit()
     

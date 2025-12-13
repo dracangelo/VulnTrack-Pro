@@ -1,12 +1,39 @@
 from flask import Blueprint, jsonify, request
+from flask_jwt_extended import jwt_required, get_jwt_identity
 from api.extensions import db
 from api.models.scan import Scan
 
 scan_bp = Blueprint('scans', __name__, url_prefix='/api/scans')
 
 @scan_bp.route('/', methods=['GET'])
+@jwt_required()
 def get_scans():
-    scans = Scan.query.order_by(Scan.id.desc()).limit(20).all()
+    from api.models.user import User
+    from api.models.target import Target
+    from api.models.team import Team
+    
+    current_user_id = get_jwt_identity()
+    user = User.query.get(current_user_id)
+    
+    if not user:
+        return jsonify({'error': 'User not found'}), 404
+        
+    # Get user's team IDs
+    team_ids = [t.id for t in user.teams]
+    
+    # Filter scans:
+    # 1. Created by user
+    # 2. OR Target belongs to one of user's teams
+    from api.models.target import TargetGroup
+    
+    # Filter scans:
+    # 1. Created by user
+    # 2. OR Target belongs to one of user's teams
+    scans = Scan.query.join(Target).outerjoin(TargetGroup).filter(
+        (Scan.user_id == current_user_id) | 
+        (TargetGroup.team_id.in_(team_ids))
+    ).order_by(Scan.id.desc()).limit(20).all()
+    
     return jsonify([{
         'id': s.id, 
         'target_id': s.target_id,
@@ -14,12 +41,31 @@ def get_scans():
         'scan_type': s.scan_type, 
         'status': s.status,
         'created_at': s.started_at.isoformat() if s.started_at else None,
-        'completed_at': s.completed_at.isoformat() if s.completed_at else None
+        'completed_at': s.completed_at.isoformat() if s.completed_at else None,
+        'user_id': s.user_id
     } for s in scans])
 
 @scan_bp.route('/<int:id>', methods=['GET'])
+@jwt_required()
 def get_scan(id):
+    from api.models.user import User
+    from api.models.target import Target
+    from api.models.team import Team
+    
+    current_user_id = get_jwt_identity()
+    user = User.query.get(current_user_id)
+    
     scan = Scan.query.get_or_404(id)
+    
+    # Check permission
+    is_owner = scan.user_id == int(current_user_id)
+    is_team_member = False
+    if scan.target and scan.target.group and scan.target.group.team_id:
+        is_team_member = scan.target.group.team_id in [t.id for t in user.teams]
+        
+    if not is_owner and not is_team_member:
+        return jsonify({'error': 'Access denied'}), 403
+        
     return jsonify({
         'id': scan.id, 
         'target_id': scan.target_id, 
@@ -27,10 +73,12 @@ def get_scan(id):
         'status': scan.status,
         'started_at': scan.started_at,
         'completed_at': scan.completed_at,
-        'raw_output': scan.raw_output
+        'raw_output': scan.raw_output,
+        'user_id': scan.user_id
     })
 
 @scan_bp.route('/', methods=['POST'])
+@jwt_required()
 def create_scan():
     data = request.get_json()
     if not data or 'target_id' not in data or 'scan_type' not in data:
@@ -38,6 +86,8 @@ def create_scan():
     
     from flask import current_app
     from api.services.scan_manager import ScanManager
+    
+    current_user_id = get_jwt_identity()
     
     # Initialize ScanManager with current app
     # In a real app, this should probably be a singleton or initialized in app context
@@ -50,7 +100,8 @@ def create_scan():
         data['target_id'], 
         data['scan_type'], 
         data.get('args'),
-        openvas_config_id=openvas_config_id
+        openvas_config_id=openvas_config_id,
+        user_id=current_user_id
     )
     
     return jsonify({'message': 'Scan started', 'scan_id': scan_id}), 201

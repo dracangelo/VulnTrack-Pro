@@ -12,8 +12,15 @@ team_bp = Blueprint('teams', __name__, url_prefix='/api/teams')
 @team_bp.route('/', methods=['GET'])
 @jwt_required()
 def get_teams():
-    """Get all teams."""
-    teams = Team.query.all()
+    """Get teams the user is a member of."""
+    current_user_id = get_jwt_identity()
+    user = User.query.get(current_user_id)
+    
+    if not user:
+        return jsonify({'error': 'User not found'}), 404
+        
+    # Only return teams the user is a member of
+    teams = user.teams
     return jsonify([t.to_dict() for t in teams])
 
 @team_bp.route('/', methods=['POST'])
@@ -27,13 +34,15 @@ def create_team():
     if Team.query.filter_by(name=data['name']).first():
         return jsonify({'error': 'Team name already exists'}), 409
         
+    current_user_id = get_jwt_identity()
+    
     team = Team(
         name=data['name'],
-        description=data.get('description')
+        description=data.get('description'),
+        creator_id=current_user_id
     )
     
     # Add creator as member
-    current_user_id = get_jwt_identity()
     user = User.query.get(current_user_id)
     if user:
         team.members.append(user)
@@ -56,6 +65,7 @@ def get_team_details(team_id):
     """Get team details including members."""
     team = Team.query.get_or_404(team_id)
     data = team.to_dict()
+    data['creator_id'] = team.creator_id
     data['members'] = [{
         'id': m.id,
         'username': m.username,
@@ -96,6 +106,17 @@ def remove_member(team_id, user_id):
     """Remove a user from a team."""
     team = Team.query.get_or_404(team_id)
     user = User.query.get_or_404(user_id)
+    
+    current_user_id = int(get_jwt_identity())
+    
+    # Permission check:
+    # 1. User removing themselves (Leaving)
+    # 2. Team creator removing a member (Kicking)
+    is_leaving = current_user_id == user_id
+    is_creator = team.creator_id == current_user_id
+    
+    if not is_leaving and not is_creator:
+        return jsonify({'error': 'Permission denied. Only the team creator can remove other members.'}), 403
     
     if user in team.members:
         team.members.remove(user)
