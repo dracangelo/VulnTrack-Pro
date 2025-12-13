@@ -18,6 +18,8 @@ def validate_cidr(cidr_notation):
         bool: True if valid, False otherwise
     """
     try:
+        if '/' not in cidr_notation:
+            return False
         ipaddress.ip_network(cidr_notation, strict=False)
         return True
     except (ValueError, TypeError):

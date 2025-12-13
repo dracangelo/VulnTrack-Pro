@@ -110,7 +110,7 @@ async function saveTicket(event) {
             closeTicketModal();
             fetchTickets();
         } else {
-            alert('Failed to save ticket');
+            UI.toast('Failed to save ticket', 'error');
         }
     } catch (error) {
         console.error('Error saving ticket:', error);
@@ -123,14 +123,13 @@ function closeTicketModal() {
 
 // Delete Ticket
 async function deleteTicket(id) {
-    if (!confirm('Are you sure you want to delete this ticket?')) return;
+    if (!await UI.confirm('Are you sure you want to delete this ticket?')) return;
 
-    try {
+    await UI.asyncOperation(async () => {
         await fetch(`/api/tickets/${id}`, { method: 'DELETE' });
         fetchTickets();
-    } catch (error) {
-        console.error('Error deleting ticket:', error);
-    }
+        UI.toast('Ticket deleted successfully', 'success');
+    }, 'Deleting ticket...');
 }
 
 // Create Ticket from Vulnerability
@@ -159,6 +158,7 @@ if (vulnId) {
 }
 
 // Redefining saveTicket to handle binding
+// Redefining saveTicket to handle binding
 saveTicket = async function (event) {
     event.preventDefault();
 
@@ -174,7 +174,7 @@ saveTicket = async function (event) {
     const url = id ? `/api/tickets/${id}` : '/api/tickets/';
     const method = id ? 'PUT' : 'POST';
 
-    try {
+    await UI.asyncOperation(async () => {
         const response = await fetch(url, {
             method: method,
             headers: { 'Content-Type': 'application/json' },
@@ -199,17 +199,16 @@ saveTicket = async function (event) {
                     console.log('Vulnerability bound to ticket');
                 } catch (bindError) {
                     console.error('Error binding vulnerability:', bindError);
-                    alert('Ticket created but failed to bind vulnerability.');
+                    UI.toast('Ticket created but failed to bind vulnerability.', 'warning');
                 }
                 delete modal.dataset.bindVulnId;
             }
 
             closeTicketModal();
             fetchTickets();
+            UI.toast('Ticket saved successfully', 'success');
         } else {
-            alert('Failed to save ticket');
+            throw new Error('Failed to save ticket');
         }
-    } catch (error) {
-        console.error('Error saving ticket:', error);
-    }
+    }, 'Saving ticket...');
 };

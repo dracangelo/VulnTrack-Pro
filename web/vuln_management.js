@@ -1,5 +1,8 @@
 // ========== Vulnerability Management ==========
 let currentVulnTargetId = null;
+let currentVulnPage = 1;
+let isVulnLoading = false;
+let hasMoreVulns = true;
 
 // Populate target dropdown when vulnerabilities section is loaded
 function populateVulnTargets() {
@@ -105,7 +108,10 @@ window.loadTargetVulnerabilities = async function () {
 
 // Apply filters and fetch vulnerabilities
 // Apply filters and fetch vulnerabilities
-window.applyVulnFilters = async function () {
+// Apply filters and fetch vulnerabilities
+window.applyVulnFilters = async function (loadMore = false) {
+    if (isVulnLoading) return;
+
     const hostFilter = document.getElementById('vulnHostFilter').value;
     const groupFilter = document.getElementById('vulnGroupFilter').value;
     const severity = document.getElementById('vulnSeverityFilter').value;
@@ -113,8 +119,20 @@ window.applyVulnFilters = async function () {
     const search = document.getElementById('vulnSearchFilter').value;
     const serviceFilter = document.getElementById('vulnServiceFilter').value;
 
+    if (!loadMore) {
+        currentVulnPage = 1;
+        hasMoreVulns = true;
+        document.getElementById('vulnList').innerHTML = '';
+    }
+
+    if (!hasMoreVulns) return;
+
+    isVulnLoading = true;
+
     // Build query params
     const params = new URLSearchParams();
+    params.append('page', currentVulnPage);
+    params.append('per_page', 20);
 
     // Use host filter if selected, otherwise use current target
     if (hostFilter) {
@@ -131,23 +149,30 @@ window.applyVulnFilters = async function () {
     if (severity) params.append('severity', severity);
     if (status) params.append('status', status);
     if (search) params.append('search', search);
+    if (serviceFilter) params.append('service', serviceFilter);
 
     try {
         const response = await fetch(`/api/vulns/instances?${params}`);
-        let vulnerabilities = await response.json();
+        const data = await response.json();
 
-        // Populate Service Filter if needed (and if we have results)
-        // We do this BEFORE filtering by service so we see all available services for the current server-side filters
-        populateServiceOptions(vulnerabilities);
-
-        // Client-side filtering for Service
-        if (serviceFilter) {
-            vulnerabilities = vulnerabilities.filter(v => v.service === serviceFilter);
+        let vulnerabilities = [];
+        if (data.items) {
+            vulnerabilities = data.items;
+            hasMoreVulns = data.current_page < data.pages;
+            currentVulnPage++;
+        } else {
+            vulnerabilities = data;
+            hasMoreVulns = false;
         }
 
-        renderVulnerabilities(vulnerabilities);
+        // Populate Service Filter (append new ones)
+        populateServiceOptions(vulnerabilities);
+
+        renderVulnerabilities(vulnerabilities, loadMore);
     } catch (error) {
         console.error('Error fetching vulnerabilities:', error);
+    } finally {
+        isVulnLoading = false;
     }
 };
 
@@ -189,19 +214,16 @@ window.clearVulnFilters = function () {
 };
 
 // Render vulnerabilities in table
-function renderVulnerabilities(vulnerabilities) {
+function renderVulnerabilities(vulnerabilities, append = false) {
     const vulnList = document.getElementById('vulnList');
     const vulnCount = document.getElementById('vulnCount');
 
-    vulnCount.textContent = `${vulnerabilities.length} ${vulnerabilities.length === 1 ? 'vulnerability' : 'vulnerabilities'}`;
-
-    // Update count in details card
-    const detailsCount = document.getElementById('vulnTargetCount');
-    if (detailsCount) {
-        detailsCount.textContent = vulnerabilities.length;
+    // Update count (approximate if paginated)
+    if (!append) {
+        vulnCount.textContent = `${vulnerabilities.length}${hasMoreVulns ? '+' : ''} vulnerabilities`;
     }
 
-    if (vulnerabilities.length === 0) {
+    if (vulnerabilities.length === 0 && !append) {
         vulnList.innerHTML = `
             <tr>
                 <td colspan="7" style="text-align: center; color: var(--text-secondary); padding: 2rem;">
@@ -212,7 +234,7 @@ function renderVulnerabilities(vulnerabilities) {
         return;
     }
 
-    vulnList.innerHTML = vulnerabilities.map(vuln => `
+    const html = vulnerabilities.map(vuln => `
         <tr>
             <td>
                 <strong>${vuln.vulnerability_name || 'Unknown'}</strong>
@@ -230,6 +252,12 @@ function renderVulnerabilities(vulnerabilities) {
             </td>
         </tr>
     `).join('');
+
+    if (append) {
+        vulnList.insertAdjacentHTML('beforeend', html);
+    } else {
+        vulnList.innerHTML = html;
+    }
 }
 
 // Get severity badge HTML
@@ -275,7 +303,7 @@ window.showVulnDetails = async function (vulnId) {
         if (!vuln) {
             console.error('Vulnerability not found in list. Looking for ID:', vulnId);
             console.error('Available IDs:', vulnerabilities.map(v => v.id));
-            alert('Vulnerability not found');
+            UI.toast('Vulnerability not found', 'error');
             return;
         }
 
@@ -367,7 +395,8 @@ window.showVulnDetails = async function (vulnId) {
     } catch (error) {
         console.error('Error fetching vulnerability details:', error);
         console.error('Error stack:', error.stack);
-        alert(`Failed to load vulnerability details: ${error.message}`);
+        console.error('Error stack:', error.stack);
+        UI.toast(`Failed to load vulnerability details: ${error.message}`, 'error');
     }
 };
 
@@ -412,17 +441,17 @@ window.updateVulnStatus = async function (event) {
         });
 
         if (response.ok) {
-            alert('Vulnerability status updated successfully!');
+            UI.toast('Vulnerability status updated successfully!', 'success');
             closeVulnDetails();
             // Refresh the vulnerability list
             await applyVulnFilters();
         } else {
             const error = await response.json();
-            alert(`Failed to update status: ${error.error || 'Unknown error'}`);
+            UI.toast(`Failed to update status: ${error.error || 'Unknown error'}`, 'error');
         }
     } catch (error) {
         console.error('Error updating vulnerability status:', error);
-        alert('Failed to update vulnerability status');
+        UI.toast('Failed to update vulnerability status', 'error');
     }
 };
 
@@ -433,7 +462,7 @@ window.triggerCreateTicket = async function () {
     const vulnCVE = document.getElementById('vulnDetailCVE').textContent;
 
     if (!vulnId) {
-        alert('Vulnerability ID not found');
+        UI.toast('Vulnerability ID not found', 'error');
         return;
     }
 
@@ -571,7 +600,9 @@ window.triggerCreateTicket = async function () {
         button.classList.remove('btn-warning');
         button.classList.add('btn-danger');
 
-        alert(`Failed to create ticket: ${error.message}`);
+        button.classList.add('btn-danger');
+
+        UI.toast(`Failed to create ticket: ${error.message}`, 'error');
 
         // Reset button after 2 seconds
         setTimeout(() => {
@@ -716,11 +747,11 @@ window.addVulnComment = async function (event) {
             loadVulnComments(); // Refresh list
         } else {
             const error = await response.json();
-            alert(`Failed to add comment: ${error.error}`);
+            UI.toast(`Failed to add comment: ${error.error}`, 'error');
         }
     } catch (error) {
         console.error('Error adding comment:', error);
-        alert('Failed to add comment');
+        UI.toast('Failed to add comment', 'error');
     }
 };
 
@@ -743,3 +774,15 @@ window.switchVulnTab = function (tabName) {
         loadVulnComments();
     }
 };
+
+// Infinite Scroll Listener
+window.addEventListener('scroll', () => {
+    // Check if we are near bottom of page
+    if ((window.innerHeight + window.scrollY) >= document.body.offsetHeight - 500) {
+        // Check if vulnerability tab/section is visible
+        const vulnListCard = document.getElementById('vulnListCard');
+        if (vulnListCard && !vulnListCard.classList.contains('hidden') && hasMoreVulns && !isVulnLoading) {
+            applyVulnFilters(true);
+        }
+    }
+});

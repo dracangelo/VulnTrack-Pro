@@ -65,7 +65,7 @@ async function editUser(id) {
         document.getElementById('userModal').classList.remove('hidden');
     } catch (error) {
         console.error('Error fetching user:', error);
-        alert('Failed to load user details');
+        UI.toast('Failed to load user details', 'error');
     }
 }
 
@@ -84,7 +84,7 @@ async function saveUser(event) {
     const url = id ? `/api/users/${id}` : '/api/users/';
     const method = id ? 'PUT' : 'POST';
 
-    try {
+    await UI.asyncOperation(async () => {
         const response = await fetch(url, {
             method: method,
             headers: { 'Content-Type': 'application/json' },
@@ -96,33 +96,27 @@ async function saveUser(event) {
         if (response.ok) {
             closeUserModal();
             fetchUsers();
-            // showNotification('User saved successfully', 'success');
+            UI.toast('User saved successfully', 'success');
         } else {
-            alert(result.error || result.msg || result.message || 'Failed to save user');
+            throw new Error(result.error || result.msg || result.message || 'Failed to save user');
         }
-    } catch (error) {
-        console.error('Error saving user:', error);
-        alert('Network error occurred');
-    }
+    }, 'Saving user...');
 }
 
 async function deleteUser(id) {
-    if (!confirm('Are you sure you want to delete this user?')) return;
+    if (!await UI.confirm('Are you sure you want to delete this user?')) return;
 
-    try {
+    await UI.asyncOperation(async () => {
         const response = await fetch(`/api/users/${id}`, {
             method: 'DELETE'
         });
 
         if (response.ok) {
             fetchUsers();
-            // showNotification('User deleted successfully', 'success');
+            UI.toast('User deleted successfully', 'success');
         } else {
             const result = await response.json();
-            alert(result.error || result.msg || result.message || 'Failed to delete user');
+            throw new Error(result.error || result.msg || result.message || 'Failed to delete user');
         }
-    } catch (error) {
-        console.error('Error deleting user:', error);
-        alert('Network error occurred');
-    }
+    }, 'Deleting user...');
 }

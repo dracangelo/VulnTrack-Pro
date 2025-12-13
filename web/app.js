@@ -10,6 +10,22 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // ========== Authentication Logic ==========
 
+    // Real-time validation for IP address
+    const ipInput = document.querySelector('input[name="ip_address"]');
+    if (ipInput) {
+        ipInput.addEventListener('input', (e) => {
+            const value = e.target.value;
+            const ipRegex = /^(?:(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.){3}(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)$/;
+            if (value && !ipRegex.test(value)) {
+                e.target.setCustomValidity('Invalid IP address format');
+                e.target.classList.add('input-error');
+            } else {
+                e.target.setCustomValidity('');
+                e.target.classList.remove('input-error');
+            }
+        });
+    }
+
     // 1. Check for token in URL (OAuth callback)
     const urlParams = new URLSearchParams(window.location.search);
     const tokenFromUrl = urlParams.get('token');
@@ -22,7 +38,7 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     if (errorFromUrl) {
-        alert(`Login Failed: ${urlParams.get('message') || 'Unknown error'}`);
+        UI.alert('Login Failed', `${urlParams.get('message') || 'Unknown error'}`, 'error');
         window.history.replaceState({}, document.title, "/");
     }
 
@@ -367,11 +383,13 @@ document.addEventListener('DOMContentLoaded', () => {
 
                 // Show live scan progress
                 showLiveScan(result.scan_id, targetName);
+                UI.toast('Scan started successfully', 'success');
             } else {
-                alert('Failed to start scan');
+                UI.toast('Failed to start scan', 'error');
             }
         } catch (error) {
             console.error('Error starting scan:', error);
+            UI.toast('Error starting scan', 'error');
         }
     });
 
@@ -647,7 +665,7 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     window.cancelScan = async () => {
-        if (!confirm('Are you sure you want to cancel this scan?')) return;
+        if (!await UI.confirm('Are you sure you want to cancel this scan?')) return;
 
         try {
             const response = await fetch(`/api/scans/${currentScanId}/cancel`, {
@@ -657,16 +675,17 @@ document.addEventListener('DOMContentLoaded', () => {
             if (response.ok) {
                 addLogEntry('Scan cancellation requested', 'WARN');
                 stopProgressPolling();
+                UI.toast('Scan cancellation requested', 'info');
                 setTimeout(() => {
                     closeLiveScan();
                 }, 1000);
             } else {
                 const error = await response.json();
-                alert(`Failed to cancel scan: ${error.error}`);
+                UI.toast(`Failed to cancel scan: ${error.error}`, 'error');
             }
         } catch (error) {
             console.error('Error cancelling scan:', error);
-            alert('Failed to cancel scan');
+            UI.toast('Failed to cancel scan', 'error');
         }
     };
 
@@ -693,14 +712,14 @@ document.addEventListener('DOMContentLoaded', () => {
                 if (response.ok) {
                     e.target.reset();
                     fetchTargets();
-                    alert('Target added successfully!');
+                    UI.toast('Target added successfully!', 'success');
                 } else {
                     const error = await response.json();
-                    alert(`Failed to add target: ${error.error || 'Unknown error'}`);
+                    UI.toast(`Failed to add target: ${error.error || 'Unknown error'}`, 'error');
                 }
             } catch (error) {
                 console.error('Error adding target:', error);
-                alert('Error adding target: ' + error.message);
+                UI.toast('Error adding target: ' + error.message, 'error');
             }
         });
     }
@@ -748,13 +767,13 @@ document.addEventListener('DOMContentLoaded', () => {
                             message += `\n\nSkipped (already exist): ${result.errors.join(', ')}`;
                         }
                     }
-                    alert(message);
+                    UI.alert('Targets Added', message, 'success');
                 } else {
-                    alert(`Failed to add targets: ${result.error || 'Unknown error'}`);
+                    UI.toast(`Failed to add targets: ${result.error || 'Unknown error'}`, 'error');
                 }
             } catch (error) {
                 console.error('Error adding targets from CIDR:', error);
-                alert('Error adding targets: ' + error.message);
+                UI.toast('Error adding targets: ' + error.message, 'error');
             } finally {
                 submitBtn.innerHTML = originalText;
                 submitBtn.disabled = false;
@@ -793,13 +812,13 @@ document.addEventListener('DOMContentLoaded', () => {
                 if (response.ok) {
                     e.target.reset();
                     fetchTargets();
-                    alert(`Target added successfully!\nHostname: ${result.hostname}\nResolved IP: ${result.ip_address}`);
+                    UI.alert('Target Added', `Hostname: ${result.hostname}\nResolved IP: ${result.ip_address}`, 'success');
                 } else {
-                    alert(`Failed to add target: ${result.error || 'Unknown error'}`);
+                    UI.toast(`Failed to add target: ${result.error || 'Unknown error'}`, 'error');
                 }
             } catch (error) {
                 console.error('Error adding target from hostname:', error);
-                alert('Error adding target: ' + error.message);
+                UI.toast('Error adding target: ' + error.message, 'error');
             } finally {
                 submitBtn.innerHTML = originalText;
                 submitBtn.disabled = false;
@@ -809,7 +828,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // Delete target
     window.deleteTarget = async (id) => {
-        if (!confirm('Are you sure you want to delete this target?')) return;
+        if (!await UI.confirm('Are you sure you want to delete this target?')) return;
 
         try {
             const response = await fetch(`/api/targets/${id}`, {
@@ -818,9 +837,9 @@ document.addEventListener('DOMContentLoaded', () => {
 
             if (response.ok) {
                 fetchTargets();
-                alert('Target deleted successfully!');
+                UI.toast('Target deleted successfully!', 'success');
             } else {
-                alert('Failed to delete target');
+                UI.toast('Failed to delete target', 'error');
             }
         } catch (error) {
             console.error('Error deleting target:', error);
@@ -901,12 +920,15 @@ document.addEventListener('DOMContentLoaded', () => {
 
                 // Show live scan progress
                 showLiveScan(result.scan_id, targetName);
+                fetchScans();
+                refreshQueueStatus();
+                UI.toast('Scan started successfully', 'success');
             } else {
-                alert('Failed to start scan');
+                UI.toast('Failed to start scan', 'error');
             }
         } catch (error) {
             console.error('Error starting scan:', error);
-            alert('Error starting scan: ' + error.message);
+            UI.toast('Error starting scan: ' + error.message, 'error');
         }
     };
 
@@ -923,26 +945,26 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     };
 
-    window.deleteScan = async (scanId) => {
-        if (!confirm('Are you sure you want to delete this scan report? This action cannot be undone.')) {
+    window.deleteScan = async (id) => {
+        if (!await UI.confirm('Are you sure you want to delete this scan report? This action cannot be undone.')) {
             return;
         }
 
         try {
-            const response = await fetch(`/api/scans/${scanId}`, {
+            const response = await fetch(`/api/scans/${id}`, {
                 method: 'DELETE'
             });
 
             if (response.ok) {
-                alert('Scan deleted successfully!');
-                fetchScans(); // Refresh the scan list
+                fetchScans();
+                UI.toast('Scan deleted successfully!', 'success');
             } else {
                 const error = await response.json();
-                alert('Failed to delete scan: ' + (error.error || 'Unknown error'));
+                UI.toast('Failed to delete scan: ' + (error.error || 'Unknown error'), 'error');
             }
         } catch (error) {
             console.error('Error deleting scan:', error);
-            alert('Error deleting scan: ' + error.message);
+            UI.toast('Error deleting scan: ' + error.message, 'error');
         }
     };
 
@@ -1464,14 +1486,14 @@ document.addEventListener('DOMContentLoaded', () => {
                 if (response.ok) {
                     hideNewScheduleModal();
                     fetchSchedules();
-                    alert('Schedule created successfully!');
+                    UI.toast('Schedule created successfully!', 'success');
                 } else {
                     const error = await response.json();
-                    alert(`Failed to create schedule: ${error.error || 'Unknown error'}`);
+                    UI.toast(`Failed to create schedule: ${error.error || 'Unknown error'}`, 'error');
                 }
             } catch (error) {
                 console.error('Error creating schedule:', error);
-                alert('Failed to create schedule');
+                UI.toast('Failed to create schedule', 'error');
             }
         });
     }
@@ -1527,27 +1549,28 @@ document.addEventListener('DOMContentLoaded', () => {
 
             if (response.ok) {
                 fetchSchedules();
+                UI.toast('Schedule updated successfully', 'success');
             } else {
-                alert('Failed to toggle schedule');
+                UI.toast('Failed to toggle schedule', 'error');
             }
         } catch (error) {
             console.error('Error toggling schedule:', error);
         }
     };
 
-    window.deleteSchedule = async (scheduleId) => {
-        if (!confirm('Are you sure you want to delete this schedule?')) return;
+    window.deleteSchedule = async (id) => {
+        if (!await UI.confirm('Are you sure you want to delete this schedule?')) return;
 
         try {
-            const response = await fetch(`/api/schedules/${scheduleId}`, {
+            const response = await fetch(`/api/schedules/${id}`, {
                 method: 'DELETE'
             });
 
             if (response.ok) {
                 fetchSchedules();
-                alert('Schedule deleted successfully!');
+                UI.toast('Schedule deleted successfully!', 'success');
             } else {
-                alert('Failed to delete schedule');
+                UI.toast('Failed to delete schedule', 'error');
             }
         } catch (error) {
             console.error('Error deleting schedule:', error);
@@ -1707,7 +1730,7 @@ document.addEventListener('DOMContentLoaded', () => {
         const type = document.getElementById('reportType').value;
 
         if (!scanId) {
-            alert('Please select a scan');
+            UI.toast('Please select a scan', 'warning');
             return;
         }
 
@@ -1723,16 +1746,16 @@ document.addEventListener('DOMContentLoaded', () => {
             });
 
             if (response.ok) {
-                closeCreateReportModal();
                 fetchReports();
-                alert('Report generated successfully!');
+                closeCreateReportModal(); // Changed from hideCreateReportModal to closeCreateReportModal
+                UI.toast('Report generated successfully!', 'success');
             } else {
                 const error = await response.json();
-                alert('Failed to generate report: ' + (error.error || 'Unknown error'));
+                UI.toast('Failed to generate report: ' + (error.error || 'Unknown error'), 'error');
             }
         } catch (error) {
             console.error('Error generating report:', error);
-            alert('Error generating report: ' + error.message);
+            UI.toast('Error generating report: ' + error.message, 'error');
         }
     };
 
@@ -1771,15 +1794,15 @@ document.addEventListener('DOMContentLoaded', () => {
     };
 
     window.bulkDeleteTargets = async () => {
-        const checkboxes = document.querySelectorAll('.target-checkbox:checked');
-        const targetIds = Array.from(checkboxes).map(cb => parseInt(cb.value));
+        const selectedCheckboxes = document.querySelectorAll('.target-checkbox:checked');
+        const targetIds = Array.from(selectedCheckboxes).map(cb => parseInt(cb.value));
 
         if (targetIds.length === 0) {
-            alert('Please select at least one target to delete');
+            UI.toast('Please select at least one target to delete', 'warning');
             return;
         }
 
-        if (!confirm(`Are you sure you want to delete ${targetIds.length} target(s)? This action cannot be undone.`)) {
+        if (!await UI.confirm(`Are you sure you want to delete ${targetIds.length} target(s)? This action cannot be undone.`)) {
             return;
         }
 
@@ -1793,34 +1816,34 @@ document.addEventListener('DOMContentLoaded', () => {
             const result = await response.json();
 
             if (response.ok) {
-                alert(`Successfully deleted ${result.deleted_count} target(s)`);
                 fetchTargets();
+                UI.toast(`Successfully deleted ${result.deleted_count} target(s)`, 'success');
             } else {
-                alert('Failed to delete targets: ' + result.error);
+                UI.toast('Failed to delete targets: ' + result.error, 'error');
             }
         } catch (error) {
             console.error('Error deleting targets:', error);
-            alert('Error deleting targets: ' + error.message);
+            UI.toast('Error deleting targets: ' + error.message, 'error');
         }
     };
 
-    window.deleteTarget = async (targetId) => {
-        if (!confirm('Are you sure you want to delete this target?')) return;
+    window.deleteTarget = async (id) => {
+        if (!await UI.confirm('Are you sure you want to delete this target?')) return;
 
         try {
-            const response = await fetch(`/api/targets/${targetId}`, {
+            const response = await fetch(`/api/targets/${id}`, {
                 method: 'DELETE'
             });
 
             if (response.ok) {
-                alert('Target deleted successfully');
                 fetchTargets();
+                UI.toast('Target deleted successfully', 'success');
             } else {
-                alert('Failed to delete target');
+                UI.toast('Failed to delete target', 'error');
             }
         } catch (error) {
             console.error('Error deleting target:', error);
-            alert('Error deleting target: ' + error.message);
+            UI.toast('Error deleting target: ' + error.message, 'error');
         }
     };
 });

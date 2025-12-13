@@ -2,7 +2,7 @@ import socketio
 import time
 import threading
 import requests
-from api.app import create_app
+from api import create_app
 from api.extensions import db
 
 # Initialize SocketIO client

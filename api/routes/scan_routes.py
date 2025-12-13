@@ -2,6 +2,7 @@ from flask import Blueprint, jsonify, request
 from flask_jwt_extended import jwt_required, get_jwt_identity
 from api.extensions import db
 from api.models.scan import Scan
+from sqlalchemy.orm import joinedload
 
 scan_bp = Blueprint('scans', __name__, url_prefix='/api/scans')
 
@@ -32,7 +33,7 @@ def get_scans():
     scans = Scan.query.join(Target).outerjoin(TargetGroup).filter(
         (Scan.user_id == current_user_id) | 
         (TargetGroup.team_id.in_(team_ids))
-    ).order_by(Scan.id.desc()).limit(20).all()
+    ).options(joinedload(Scan.target)).order_by(Scan.id.desc()).limit(20).all()
     
     return jsonify([{
         'id': s.id, 
@@ -156,10 +157,10 @@ def get_queue_status():
     
     # Get active scans
     active_scan_ids = list(scan_manager.active_scans.keys())
-    active_scans = Scan.query.filter(Scan.id.in_(active_scan_ids)).all() if active_scan_ids else []
+    active_scans = Scan.query.filter(Scan.id.in_(active_scan_ids)).options(joinedload(Scan.target)).all() if active_scan_ids else []
     
     # Get queued scans
-    queued_scans = Scan.query.filter_by(status='queued').order_by(Scan.queue_position).all()
+    queued_scans = Scan.query.filter_by(status='queued').options(joinedload(Scan.target)).order_by(Scan.queue_position).all()
     
     return jsonify({
         'max_concurrent': scan_manager.scan_queue.max_concurrent,

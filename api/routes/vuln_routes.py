@@ -1,10 +1,13 @@
 from flask import Blueprint, jsonify, request
 from api.models.vulnerability import Vulnerability, VulnerabilityInstance
 from api.extensions import db
+from api.cache import cache
+from sqlalchemy.orm import joinedload
 
 vuln_bp = Blueprint('vulnerabilities', __name__, url_prefix='/api/vulns')
 
 @vuln_bp.route('/', methods=['GET'])
+@cache.cached(timeout=3600, query_string=True)
 def get_vulns():
     """Get all vulnerability definitions with optional filtering"""
     severity = request.args.get('severity')
@@ -65,6 +68,7 @@ def get_instances():
     status = request.args.get('status', 'open')  # Default to open
     port = request.args.get('port')
     protocol = request.args.get('protocol')
+    service = request.args.get('service')
     search = request.args.get('search')
     
     # Join with Vulnerability and Target to enable filtering by group
@@ -89,6 +93,9 @@ def get_instances():
     
     if protocol:
         query = query.filter(VulnerabilityInstance.protocol == protocol)
+
+    if service:
+        query = query.filter(VulnerabilityInstance.service == service)
     
     if search:
         query = query.filter(Vulnerability.name.ilike(f'%{search}%'))
@@ -103,6 +110,27 @@ def get_instances():
         else_=6
     )
     query = query.order_by(severity_order, VulnerabilityInstance.detected_at.desc())
+    
+    # Optimize query with joinedload to prevent N+1
+    query = query.options(
+        joinedload(VulnerabilityInstance.vulnerability),
+        joinedload(VulnerabilityInstance.target),
+        joinedload(VulnerabilityInstance.scan)
+    )
+
+    # Pagination
+    page = request.args.get('page', type=int)
+    per_page = request.args.get('per_page', 20, type=int)
+
+    if page:
+        pagination = query.paginate(page=page, per_page=per_page, error_out=False)
+        return jsonify({
+            'items': [i.to_dict() for i in pagination.items],
+            'total': pagination.total,
+            'pages': pagination.pages,
+            'current_page': page,
+            'per_page': per_page
+        })
     
     instances = query.all()
     

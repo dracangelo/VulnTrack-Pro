@@ -18,11 +18,11 @@ class Target(db.Model):
 
     id = db.Column(db.Integer, primary_key=True)
     name = db.Column(db.String(100), nullable=False)
-    ip_address = db.Column(db.String(45), nullable=False) # IPv4 or IPv6
+    ip_address = db.Column(db.String(45), nullable=False, index=True) # IPv4 or IPv6
     description = db.Column(db.String(255))
     group_id = db.Column(db.Integer, db.ForeignKey('target_groups.id'), nullable=True)
     user_id = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=True) # Owner
-    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow, index=True)
     
     # OS Summary (latest detected)
     os_name = db.Column(db.String(255))

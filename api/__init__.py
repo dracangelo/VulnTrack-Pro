@@ -1,4 +1,5 @@
 from flask import Flask, jsonify, send_from_directory
+from flask_compress import Compress
 from flask_cors import CORS
 # from flask_talisman import Talisman
 from api.config import Config
@@ -10,6 +11,10 @@ def create_app(config_class=Config):
     
     # Initialize extensions
     from api.extensions import db, migrate, limiter, socketio, jwt
+    from api.cache import cache
+    
+    Compress(app)
+    cache.init_app(app)
     
     # Initialize rate limiter (increased for development)
     app.config['RATELIMIT_DEFAULT'] = '500 per hour'  # Increased from 50 to 500

@@ -157,24 +157,21 @@ async function refreshBanners() {
     const targetId = document.getElementById('assetTargetSelect').value;
 
     if (!targetId) {
-        alert('Please select a target first');
+        UI.toast('Please select a target first', 'warning');
         return;
     }
 
-    try {
+    await UI.asyncOperation(async () => {
         const response = await fetch(`/api/assets/targets/${targetId}/refresh-banners`, {
             method: 'POST'
         });
 
         const result = await response.json();
-        alert(`Banner refresh completed! ${result.banners_grabbed} banners grabbed.`);
+        UI.toast(`Banner refresh completed! ${result.banners_grabbed} banners grabbed.`, 'success');
 
         // Reload assets
         loadTargetAssets();
-    } catch (error) {
-        console.error('Error refreshing banners:', error);
-        alert('Failed to refresh banners');
-    }
+    }, 'Refreshing banners...');
 }
 
 // Helper function to escape HTML

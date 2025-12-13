@@ -16,3 +16,8 @@ class Config:
     
     # Scanning
     MAX_CONCURRENT_SCANS = int(os.getenv('MAX_CONCURRENT_SCANS', 3))
+
+    # Caching
+    CACHE_TYPE = os.environ.get('CACHE_TYPE', 'SimpleCache')
+    CACHE_DEFAULT_TIMEOUT = 300
+    CACHE_REDIS_URL = os.environ.get('REDIS_URL')

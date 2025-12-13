@@ -61,16 +61,14 @@ document.addEventListener('DOMContentLoaded', () => {
             const submitBtn = createTeamForm.querySelector('button[type="submit"]');
             if (submitBtn.disabled) return;
 
-            submitBtn.disabled = true;
-            submitBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Creating...';
-
             const formData = new FormData(e.target);
             const data = {
                 name: formData.get('name'),
                 description: formData.get('description')
             };
 
-            try {
+            await UI.asyncOperation(async () => {
+                submitBtn.disabled = true;
                 const response = await fetch('/api/teams/', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
@@ -81,18 +79,14 @@ document.addEventListener('DOMContentLoaded', () => {
                     hideCreateTeamModal();
                     e.target.reset();
                     fetchTeams();
-                    alert('Team created successfully!');
+                    UI.toast('Team created successfully', 'success');
                 } else {
                     const error = await response.json();
-                    alert(`Failed to create team: ${error.error || error.msg || error.message || 'Unknown error'}`);
+                    throw new Error(error.error || error.msg || error.message || 'Unknown error');
                 }
-            } catch (error) {
-                console.error('Error creating team:', error);
-                alert('Failed to create team');
-            } finally {
+            }, 'Creating team...').finally(() => {
                 submitBtn.disabled = false;
-                submitBtn.textContent = 'Create Team';
-            }
+            });
         });
     }
 });
@@ -171,10 +165,10 @@ function renderTeamMembers(members, teamId) {
 // Add Member
 window.addTeamMember = async function () {
     const teamId = document.getElementById('currentTeamId').value;
-    const username = prompt("Enter username to add:");
+    const username = await UI.prompt("Enter username to add:", "text", "Username");
     if (!username) return;
 
-    try {
+    await UI.asyncOperation(async () => {
         const response = await fetch(`/api/teams/${teamId}/members`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
@@ -182,35 +176,31 @@ window.addTeamMember = async function () {
         });
 
         if (response.ok) {
-            alert('Member added successfully');
+            UI.toast('Member added successfully', 'success');
             showTeamDetails(teamId); // Refresh
         } else {
             const error = await response.json();
-            alert(`Failed to add member: ${error.error || error.message}`);
+            throw new Error(error.error || error.message);
         }
-    } catch (error) {
-        console.error('Error adding member:', error);
-        alert('Failed to add member');
-    }
+    }, 'Adding member...');
 };
 
 // Remove Member
 window.removeTeamMember = async function (teamId, userId) {
-    if (!confirm('Are you sure you want to remove this member?')) return;
+    if (!await UI.confirm('Are you sure you want to remove this member?')) return;
 
-    try {
+    await UI.asyncOperation(async () => {
         const response = await fetch(`/api/teams/${teamId}/members/${userId}`, {
             method: 'DELETE'
         });
 
         if (response.ok) {
             showTeamDetails(teamId); // Refresh
+            UI.toast('Member removed successfully', 'success');
         } else {
-            alert('Failed to remove member');
+            throw new Error('Failed to remove member');
         }
-    } catch (error) {
-        console.error('Error removing member:', error);
-    }
+    }, 'Removing member...');
 };
 
 // ========== Invitations ==========
@@ -226,7 +216,7 @@ window.hideInviteModal = function () {
 
 window.generateInviteLink = async function () {
     const teamId = document.getElementById('currentTeamId').value;
-    try {
+    await UI.asyncOperation(async () => {
         const response = await fetch(`/api/teams/${teamId}/invites`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
@@ -236,12 +226,11 @@ window.generateInviteLink = async function () {
         if (response.ok) {
             const data = await response.json();
             document.getElementById('inviteLinkInput').value = data.link;
+            UI.toast('Invite link generated', 'success');
         } else {
-            alert('Failed to generate link');
+            throw new Error('Failed to generate link');
         }
-    } catch (error) {
-        console.error('Error generating link:', error);
-    }
+    }, 'Generating link...');
 };
 
 window.sendInviteEmail = async function (event) {
@@ -249,7 +238,7 @@ window.sendInviteEmail = async function (event) {
     const teamId = document.getElementById('currentTeamId').value;
     const email = document.getElementById('inviteEmailInput').value;
 
-    try {
+    await UI.asyncOperation(async () => {
         const response = await fetch(`/api/teams/${teamId}/invites`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
@@ -257,15 +246,13 @@ window.sendInviteEmail = async function (event) {
         });
 
         if (response.ok) {
-            alert('Invitation sent successfully');
+            UI.toast('Invitation sent successfully', 'success');
             document.getElementById('inviteEmailInput').value = '';
             hideInviteModal();
         } else {
-            alert('Failed to send invitation');
+            throw new Error('Failed to send invitation');
         }
-    } catch (error) {
-        console.error('Error sending invitation:', error);
-    }
+    }, 'Sending invitation...');
 };
 
 // Check for invite in URL
@@ -277,9 +264,9 @@ window.checkInvite = async function () {
         // Clear param
         window.history.replaceState({}, document.title, "/");
 
-        if (!confirm('You have been invited to join a team. Do you want to join now?')) return;
+        if (!await UI.confirm('You have been invited to join a team. Do you want to join now?', 'Team Invitation')) return;
 
-        try {
+        await UI.asyncOperation(async () => {
             const response = await fetch(`/api/teams/invites/${inviteToken}/accept`, {
                 method: 'POST'
             });
@@ -287,14 +274,11 @@ window.checkInvite = async function () {
             const data = await response.json();
 
             if (response.ok) {
-                alert(data.message);
+                UI.toast(data.message, 'success');
                 fetchTeams(); // Refresh teams list
             } else {
-                alert(`Failed to join team: ${data.error || 'Unknown error'}`);
+                throw new Error(`Failed to join team: ${data.error || 'Unknown error'}`);
             }
-        } catch (error) {
-            console.error('Error accepting invite:', error);
-            alert('Error accepting invitation');
-        }
+        }, 'Joining team...');
     }
 };

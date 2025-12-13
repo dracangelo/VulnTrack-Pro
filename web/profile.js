@@ -94,7 +94,7 @@ async function updateProfileInfo(event) {
         email: document.getElementById('editEmail').value
     };
 
-    try {
+    await UI.asyncOperation(async () => {
         const response = await fetch('/api/auth/me', {
             method: 'PUT',
             headers: { 'Content-Type': 'application/json' },
@@ -104,15 +104,12 @@ async function updateProfileInfo(event) {
         const result = await response.json();
 
         if (response.ok) {
-            alert('Profile updated successfully');
+            UI.toast('Profile updated successfully', 'success');
             fetchProfile(); // Refresh view
         } else {
-            alert(`Failed to update profile: ${result.error || result.message || 'Unknown error'}`);
+            throw new Error(result.error || result.message || 'Unknown error');
         }
-    } catch (error) {
-        console.error('Error updating profile:', error);
-        alert('Failed to update profile');
-    }
+    }, 'Updating profile...');
 }
 
 async function updatePassword(event) {
@@ -123,16 +120,16 @@ async function updatePassword(event) {
     const confirm = document.getElementById('confirmPassword').value;
 
     if (password !== confirm) {
-        alert('New passwords do not match');
+        UI.toast('New passwords do not match', 'warning');
         return;
     }
 
     if (password.length < 8) {
-        alert('New password must be at least 8 characters');
+        UI.toast('New password must be at least 8 characters', 'warning');
         return;
     }
 
-    try {
+    await UI.asyncOperation(async () => {
         const response = await fetch('/api/auth/me', {
             method: 'PUT',
             headers: { 'Content-Type': 'application/json' },
@@ -145,16 +142,13 @@ async function updatePassword(event) {
         const result = await response.json();
 
         if (response.ok) {
-            alert('Password updated successfully');
+            UI.toast('Password updated successfully', 'success');
             document.getElementById('currentPassword').value = '';
             document.getElementById('editPassword').value = '';
             document.getElementById('confirmPassword').value = '';
             fetchProfile(); // Refresh logs
         } else {
-            alert(`Failed to update password: ${result.error || result.message || 'Unknown error'}`);
+            throw new Error(result.error || result.message || 'Unknown error');
         }
-    } catch (error) {
-        console.error('Error updating password:', error);
-        alert('Failed to update password');
-    }
+    }, 'Updating password...');
 }

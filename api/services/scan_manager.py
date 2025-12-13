@@ -211,7 +211,7 @@ class ScanManager:
 
                     # Auto-generate HTML Report
                     try:
-                        from api.services.report_generator import ReportGenerator
+                        from api.services.legacy_report_generator import ReportGenerator
                         report_content = ReportGenerator.generate_html_report(scan_id)
                         if report_content:
                             scan.report_html = report_content
@@ -221,7 +221,7 @@ class ScanManager:
                     
                     # Auto-generate PDF Report
                     try:
-                        from api.services.report_generator import ReportGenerator
+                        from api.services.legacy_report_generator import ReportGenerator
                         pdf_content = ReportGenerator.generate_pdf_report(scan_id)
                         if pdf_content:
                             scan.report_pdf = pdf_content
