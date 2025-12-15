@@ -216,7 +216,7 @@ def download_scan_report_pdf(scan_id):
             return jsonify({'error': 'Report generation failed or scan not found'}), 404
             
         return send_file(
-            io.BytesIO(pdf_bytes),
+            BytesIO(pdf_bytes),
             mimetype='application/pdf',
             as_attachment=True,
             download_name=f'scan_report_{scan_id}.pdf'
@@ -254,7 +254,7 @@ def download_scan_pdf(scan_id):
     filename = f'scan_report_{scan_id}_{target_name}.pdf'.replace(' ', '_')
     
     return send_file(
-        io.BytesIO(pdf_data),
+        BytesIO(pdf_data),
         mimetype='application/pdf',
         as_attachment=True,
         download_name=filename

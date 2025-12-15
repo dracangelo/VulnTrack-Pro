@@ -120,3 +120,44 @@ async function deleteUser(id) {
         }
     }, 'Deleting user...');
 }
+
+// Invite Logic
+function showInviteModal() {
+    document.getElementById('inviteModal').classList.remove('hidden');
+}
+
+function closeInviteModal() {
+    document.getElementById('inviteModal').classList.add('hidden');
+    document.getElementById('inviteForm').reset();
+}
+
+async function sendInvite(event) {
+    event.preventDefault();
+
+    const email = document.getElementById('inviteEmail').value;
+    const roleId = document.getElementById('inviteRole').value;
+
+    await UI.asyncOperation(async () => {
+        const response = await fetch('/api/auth/invite', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ email, role_id: parseInt(roleId) })
+        });
+
+        const result = await response.json();
+
+        if (response.ok) {
+            closeInviteModal();
+            UI.toast('Invitation sent successfully', 'success');
+
+            // If we got a token back (dev mode or just info), maybe log it or show it
+            if (result.token) {
+                console.log('Invite Token:', result.token);
+                // In dev mode without SMTP, we might want to show this to the user
+                // But for now, let's assume they check logs or it worked
+            }
+        } else {
+            throw new Error(result.error || result.message || 'Failed to send invitation');
+        }
+    }, 'Sending invitation...');
+}

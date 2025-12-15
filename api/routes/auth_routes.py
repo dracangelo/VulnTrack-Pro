@@ -250,3 +250,127 @@ def register():
         'token': access_token,
         'user': new_user.to_dict()
     }), 201
+
+@auth_bp.route('/invite', methods=['POST'])
+@jwt_required()
+def create_invite():
+    """Create and send an invitation"""
+    from api.models.invite import Invite
+    from api.models.role import Role
+    from api.services.notification_service import NotificationService
+    from api.extensions import db
+    from datetime import datetime, timedelta
+    
+    current_user_id = get_jwt_identity()
+    user = User.query.get(current_user_id)
+    
+    # Check if user is admin (or has permission)
+    if not user.role or user.role.name != 'admin':
+        return jsonify({'error': 'Permission denied'}), 403
+        
+    data = request.get_json()
+    if not data or 'email' not in data or 'role_id' not in data:
+        return jsonify({'error': 'Missing email or role_id'}), 400
+        
+    email = data['email']
+    role_id = data['role_id']
+    
+    # Check if user already exists
+    if User.query.filter_by(email=email).first():
+        return jsonify({'error': 'User with this email already exists'}), 409
+        
+    # Check if valid role
+    role = Role.query.get(role_id)
+    if not role:
+        return jsonify({'error': 'Invalid role'}), 400
+        
+    # Check for existing pending invite
+    existing_invite = Invite.query.filter_by(email=email, is_used=False).first()
+    if existing_invite:
+        # Update existing invite
+        existing_invite.expires_at = datetime.utcnow() + timedelta(hours=24)
+        existing_invite.role_id = role_id
+        existing_invite.created_by = current_user_id
+        invite = existing_invite
+    else:
+        # Create new invite
+        invite = Invite(
+            email=email,
+            role_id=role_id,
+            created_by=current_user_id,
+            expires_at=datetime.utcnow() + timedelta(hours=24)
+        )
+        db.session.add(invite)
+    
+    db.session.commit()
+    
+    # Send email
+    if NotificationService.send_invite_email(email, invite.token, role.name):
+        return jsonify({'message': 'Invitation sent successfully', 'token': invite.token}), 201
+    else:
+        return jsonify({'message': 'Invitation created but email failed', 'token': invite.token}), 201
+
+@auth_bp.route('/invite/<token>', methods=['GET'])
+def validate_invite(token):
+    """Validate an invite token"""
+    from api.models.invite import Invite
+    from datetime import datetime
+    
+    invite = Invite.query.filter_by(token=token, is_used=False).first()
+    
+    if not invite:
+        return jsonify({'valid': False, 'error': 'Invalid or used token'}), 404
+        
+    if invite.expires_at < datetime.utcnow():
+        return jsonify({'valid': False, 'error': 'Token expired'}), 400
+        
+    return jsonify({
+        'valid': True, 
+        'email': invite.email, 
+        'role': invite.role.name
+    })
+
+@auth_bp.route('/register/invite', methods=['POST'])
+def register_with_invite():
+    """Register using an invite token"""
+    from api.models.invite import Invite
+    from werkzeug.security import generate_password_hash
+    from api.extensions import db
+    from datetime import datetime
+    
+    data = request.get_json()
+    if not data or 'token' not in data or 'username' not in data or 'password' not in data:
+        return jsonify({'error': 'Missing required fields'}), 400
+        
+    token = data['token']
+    invite = Invite.query.filter_by(token=token, is_used=False).first()
+    
+    if not invite:
+        return jsonify({'error': 'Invalid or used token'}), 404
+        
+    if invite.expires_at < datetime.utcnow():
+        return jsonify({'error': 'Token expired'}), 400
+        
+    if User.query.filter_by(username=data['username']).first():
+        return jsonify({'error': 'Username already exists'}), 409
+        
+    # Create user
+    new_user = User(
+        username=data['username'],
+        email=invite.email, # Use email from invite
+        password_hash=generate_password_hash(data['password']),
+        role_id=invite.role_id
+    )
+    
+    # Mark invite as used
+    invite.is_used = True
+    
+    db.session.add(new_user)
+    db.session.commit()
+    
+    access_token = create_access_token(identity=str(new_user.id))
+    return jsonify({
+        'message': 'User registered successfully',
+        'token': access_token,
+        'user': new_user.to_dict()
+    }), 201

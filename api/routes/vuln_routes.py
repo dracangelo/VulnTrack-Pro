@@ -137,6 +137,15 @@ def get_instances():
     # Use the to_dict() method from the model
     return jsonify([i.to_dict() for i in instances])
 
+    # Use the to_dict() method from the model
+    return jsonify([i.to_dict() for i in instances])
+
+@vuln_bp.route('/instances/<int:instance_id>', methods=['GET'])
+def get_instance(instance_id):
+    """Get a single vulnerability instance"""
+    instance = VulnerabilityInstance.query.get_or_404(instance_id)
+    return jsonify(instance.to_dict())
+
 @vuln_bp.route('/instances/<int:instance_id>', methods=['PATCH'])
 def update_instance(instance_id):
     """Update vulnerability instance status"""

@@ -90,22 +90,24 @@ def create_scan():
     
     current_user_id = get_jwt_identity()
     
-    # Initialize ScanManager with current app
-    # In a real app, this should probably be a singleton or initialized in app context
-    scan_manager = ScanManager(current_app._get_current_object())
+    # Use singleton ScanManager
+    scan_manager = current_app.scan_manager
     
     # Extract OpenVAS config if provided
     openvas_config_id = data.get('openvas_config_id')
     
-    scan_id = scan_manager.start_scan(
-        data['target_id'], 
-        data['scan_type'], 
-        data.get('args'),
-        openvas_config_id=openvas_config_id,
-        user_id=current_user_id
-    )
-    
-    return jsonify({'message': 'Scan started', 'scan_id': scan_id}), 201
+    try:
+        scan_id = scan_manager.start_scan(
+            data['target_id'], 
+            data['scan_type'], 
+            data.get('args'),
+            openvas_config_id=openvas_config_id,
+            user_id=current_user_id
+        )
+        
+        return jsonify({'message': 'Scan started', 'scan_id': scan_id}), 201
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
 
 @scan_bp.route('/<int:scan_id>/progress', methods=['GET'])
 def get_scan_progress(scan_id):
@@ -138,9 +140,8 @@ def cancel_scan(scan_id):
         return jsonify({'error': 'Can only cancel running scans'}), 400
     
     from flask import current_app
-    from api.services.scan_manager import ScanManager
     
-    scan_manager = ScanManager(current_app._get_current_object())
+    scan_manager = current_app.scan_manager
     
     if scan_manager.cancel_scan(scan_id):
         return jsonify({'message': 'Scan cancellation requested'}), 200
@@ -151,9 +152,8 @@ def cancel_scan(scan_id):
 def get_queue_status():
     """Get current queue status and active scans"""
     from flask import current_app
-    from api.services.scan_manager import ScanManager
     
-    scan_manager = ScanManager(current_app._get_current_object())
+    scan_manager = current_app.scan_manager
     
     # Get active scans
     active_scan_ids = list(scan_manager.active_scans.keys())

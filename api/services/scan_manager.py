@@ -147,9 +147,9 @@ class ScanManager:
                 return
 
             scan.status = 'running'
-            scan.progress = 5
-            scan.current_step = 'Starting scan...'
+            scan.status = 'running'
             db.session.commit()
+            self.update_progress(scan_id, 5, 'Starting scan...')
             
             results = {}
             try:
@@ -161,15 +161,13 @@ class ScanManager:
                     db.session.commit()
                     return
                 
-                if scan_type == 'nmap':
+                if scan_type == 'nmap' or scan_type.startswith('nmap_'):
                     self._run_nmap_scan(scan_id, target, scanner_args)
                 elif scan_type == 'openvas':
                     self._run_openvas_scan(scan_id, target, openvas_config_id)
                 elif scan_type.startswith('plugin:'):
                     plugin_name = scan_type.split(':')[1]
-                    scan.current_step = f'Running plugin: {plugin_name}'
-                    scan.progress = 50
-                    db.session.commit()
+                    self.update_progress(scan_id, 50, f'Running plugin: {plugin_name}')
                     results = self.plugin_loader.run_plugin(plugin_name, target.ip_address, scanner_args)
                     scan.raw_output = json.dumps(results)
                     scan.status = 'completed'
@@ -177,11 +175,14 @@ class ScanManager:
                 else:
                     results = {'error': f'Unknown scan type: {scan_type}'}
                     scan.status = 'failed'
+                    scan.raw_output = json.dumps(results)
+                    scan.completed_at = datetime.utcnow()
+                    db.session.commit()
 
                 if scan.status == 'completed':
                     scan.completed_at = datetime.utcnow()
-                    scan.current_step = 'Scan completed'
                     db.session.commit()
+                    self.update_progress(scan_id, 100, 'Scan completed')
                     
                     # Trigger Vulnerability Processing
                     try:
@@ -281,9 +282,8 @@ class ScanManager:
             scan = Scan.query.get(scan_id)
             
             # Update progress: Preparing
-            scan.progress = 10
-            scan.current_step = 'Preparing Nmap scan...'
-            db.session.commit()
+            # Update progress: Preparing
+            self.update_progress(scan_id, 10, 'Preparing Nmap scan...')
             
             # Check cancellation
             if self.is_cancelled(scan_id):
@@ -300,9 +300,8 @@ class ScanManager:
                 self.active_scans[scan_id]['parser'] = parser
             
             # Run Nmap scan with real-time parsing
-            scan.progress = 20
-            scan.current_step = 'Starting Nmap scan...'
-            db.session.commit()
+            # Run Nmap scan with real-time parsing
+            self.update_progress(scan_id, 20, 'Starting Nmap scan...')
             
             raw_results = parser.scan_target(
                 target.ip_address, 
@@ -327,9 +326,8 @@ class ScanManager:
                 return
             
             # Normalize results
-            scan.progress = 90
-            scan.current_step = 'Finalizing results...'
-            db.session.commit()
+            # Normalize results
+            self.update_progress(scan_id, 90, 'Finalizing results...')
             
             normalized = parser.normalize_results(raw_results)
             
@@ -338,9 +336,8 @@ class ScanManager:
                 'raw': raw_results.get('raw_output', '')
             })
             scan.status = 'completed'
-            scan.progress = 100
-            scan.current_step = 'Scan completed'
             db.session.commit()
+            self.update_progress(scan_id, 100, 'Scan completed')
 
     def _run_openvas_scan(self, scan_id, target, config_id=None):
         """Run OpenVAS scan with progress tracking"""
@@ -360,9 +357,8 @@ class ScanManager:
                 )
                 
                 # Launch scan with optional config
-                scan.progress = 10
-                scan.current_step = 'Connecting to OpenVAS...'
-                db.session.commit()
+                # Launch scan with optional config
+                self.update_progress(scan_id, 10, 'Connecting to OpenVAS...')
                 
                 task_id, report_id = scanner.launch_scan(target.name, target.ip_address, config_id)
                 
@@ -375,17 +371,23 @@ class ScanManager:
                 # Store OpenVAS IDs
                 scan.openvas_task_id = task_id
                 scan.openvas_report_id = report_id
-                scan.progress = 20
-                scan.current_step = 'OpenVAS scan started...'
                 db.session.commit()
+                self.update_progress(scan_id, 20, 'OpenVAS scan started...')
                 
                 # Poll for progress
                 scanner.connect()
                 while True:
+                    # Check for cancellation
+                    if self.is_cancelled(scan_id):
+                        scanner.stop_task(task_id)
+                        scan.status = 'cancelled'
+                        scan.current_step = 'Scan cancelled by user'
+                        db.session.commit()
+                        break
+
                     status_info = scanner.get_task_status(task_id)
-                    scan.progress = min(20 + int(status_info['progress'] * 0.7), 90)
-                    scan.current_step = f"OpenVAS scanning... ({status_info['status']})"
-                    db.session.commit()
+                    progress = min(20 + int(status_info['progress'] * 0.7), 90)
+                    self.update_progress(scan_id, progress, f"OpenVAS scanning... ({status_info['status']})")
                     
                     if status_info['status'] in ['Done', 'Stopped', 'Interrupted']:
                         break
@@ -393,9 +395,8 @@ class ScanManager:
                     time.sleep(5)  # Poll every 5 seconds
                 
                 # Get report
-                scan.progress = 95
-                scan.current_step = 'Retrieving OpenVAS report...'
-                db.session.commit()
+                # Get report
+                self.update_progress(scan_id, 95, 'Retrieving OpenVAS report...')
                 
                 report_xml = scanner.get_report(report_id)
                 vulnerabilities = scanner.parse_report(report_xml)
@@ -408,10 +409,10 @@ class ScanManager:
                     'report_id': report_id,
                     'vulnerabilities': vulnerabilities
                 })
+
                 scan.status = 'completed'
-                scan.progress = 100
-                scan.current_step = 'OpenVAS scan completed'
                 db.session.commit()
+                self.update_progress(scan_id, 100, 'OpenVAS scan completed')
                 
             except Exception as e:
                 print(f"OpenVAS scan error: {e}")

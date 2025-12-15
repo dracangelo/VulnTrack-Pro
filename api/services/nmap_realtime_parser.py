@@ -38,6 +38,10 @@ class NmapRealtimeParser:
         # Add OS detection if not present (requires root)
         if '-O' not in arguments:
             arguments += ' -O'
+            
+        # Add stats-every for regular progress updates
+        if '--stats-every' not in arguments:
+            arguments += ' --stats-every 5s'
         
         # Create temp file for XML output
         fd, xml_output_path = tempfile.mkstemp(suffix='.xml')

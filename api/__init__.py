@@ -61,6 +61,7 @@ def create_app(config_class=Config):
     from api.routes.search_routes import search_bp
     from api.routes.team_routes import team_bp
     from api.routes.collaboration_routes import collab_bp
+    from api.routes.notification_routes import notification_bp
     
     app.register_blueprint(target_bp)
     app.register_blueprint(scan_bp)
@@ -81,6 +82,7 @@ def create_app(config_class=Config):
     app.register_blueprint(search_bp)
     app.register_blueprint(team_bp)
     app.register_blueprint(collab_bp)
+    app.register_blueprint(notification_bp)
     
     # Register WebSocket events
     from api import socket_events
@@ -92,6 +94,10 @@ def create_app(config_class=Config):
     # Initialize Scheduler Service
     from api.services.scheduler_service import SchedulerService
     app.scheduler_service = SchedulerService(app)
+    
+    # Initialize Scan Manager
+    from api.services.scan_manager import ScanManager
+    app.scan_manager = ScanManager(app)
     
     # Configure Logging
     from api.logger import configure_logging

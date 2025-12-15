@@ -5,6 +5,7 @@ load_dotenv()
 
 class Config:
     # Database
+    # Database
     SQLALCHEMY_DATABASE_URI = os.getenv('DATABASE_URL', 'sqlite:///vulntrack.db')
     SQLALCHEMY_TRACK_MODIFICATIONS = False
     

@@ -30,16 +30,20 @@ document.addEventListener('DOMContentLoaded', () => {
     const urlParams = new URLSearchParams(window.location.search);
     const tokenFromUrl = urlParams.get('token');
     const errorFromUrl = urlParams.get('error');
+    const inviteToken = urlParams.get('invite_token');
 
     if (tokenFromUrl) {
         localStorage.setItem('jwt_token', tokenFromUrl);
-        // Clean URL
         window.history.replaceState({}, document.title, "/");
     }
 
     if (errorFromUrl) {
         UI.alert('Login Failed', `${urlParams.get('message') || 'Unknown error'}`, 'error');
         window.history.replaceState({}, document.title, "/");
+    }
+
+    if (inviteToken) {
+        handleInviteToken(inviteToken);
     }
 
     // 2. Override fetch to add Authorization header
@@ -283,6 +287,10 @@ document.addEventListener('DOMContentLoaded', () => {
             fetchUsers();
         } else if (sectionId === 'profile') {
             fetchProfile();
+        } else if (sectionId === 'notifications') {
+            if (typeof fetchNotifications === 'function') {
+                fetchNotifications();
+            }
         }
     }
 
@@ -423,7 +431,7 @@ document.addEventListener('DOMContentLoaded', () => {
                         <i class="fas fa-radar"></i> Scan
                     </button>
                     <button onclick="deleteTarget(${target.id})" class="btn btn-danger" style="padding: 0.5rem 1rem;">
-                        <i class="fas fa-trash"></i>
+                        <i class="fas fa-trash"></i> Delete
                     </button>
                 </td>
             </tr>
@@ -607,7 +615,7 @@ document.addEventListener('DOMContentLoaded', () => {
         }
 
         // Update elapsed time
-        if (data.elapsed_seconds) {
+        if (data.elapsed_seconds !== undefined && data.elapsed_seconds !== null) {
             const minutes = Math.floor(data.elapsed_seconds / 60);
             const seconds = data.elapsed_seconds % 60;
             document.getElementById('elapsedDisplay').textContent = `${minutes}m ${seconds}s`;
@@ -876,16 +884,44 @@ document.addEventListener('DOMContentLoaded', () => {
                         <button onclick="downloadReport(${scan.id}, 'pdf')" class="btn btn-secondary" style="padding: 0.5rem 1rem; margin-right: 0.5rem;">
                             <i class="fas fa-file-pdf"></i> PDF
                         </button>`
-                : '<span style="color: var(--text-muted);">-</span>'}
+                : ''}
+                    
+                    ${scan.status === 'running' ?
+                `<button onclick="stopScan(${scan.id})" class="btn btn-warning" style="padding: 0.5rem 1rem; margin-right: 0.5rem;">
+                            <i class="fas fa-stop"></i> Stop
+                        </button>`
+                : ''}
+
                     ${scan.status !== 'running' ?
                 `<button onclick="deleteScan(${scan.id})" class="btn btn-danger" style="padding: 0.5rem 1rem;">
-                            <i class="fas fa-trash"></i>
+                            <i class="fas fa-trash"></i> Delete
                         </button>`
                 : ''}
                 </td>
             </tr>
         `).join('');
     }
+
+    window.stopScan = async (id) => {
+        if (!await UI.confirm('Are you sure you want to stop this scan?')) return;
+
+        try {
+            const response = await fetch(`/api/scans/${id}/cancel`, {
+                method: 'DELETE'
+            });
+
+            if (response.ok) {
+                fetchScans();
+                UI.toast('Scan stop requested', 'info');
+            } else {
+                const error = await response.json();
+                UI.toast(`Failed to stop scan: ${error.error}`, 'error');
+            }
+        } catch (error) {
+            console.error('Error stopping scan:', error);
+            UI.toast('Failed to stop scan', 'error');
+        }
+    };
 
     function getScanStatusBadge(status) {
         const badges = {
@@ -1895,6 +1931,87 @@ function initMobileMenu() {
             if (window.innerWidth <= 768) {
                 closeMobileMenu();
             }
+            // Invite Handling
+            async function handleInviteToken(token) {
+                try {
+                    const response = await fetch(`/api/auth/invite/${token}`);
+                    const data = await response.json();
+
+                    if (response.ok && data.valid) {
+                        // Show registration modal
+                        const modal = document.getElementById('loginModal');
+                        modal.classList.add('hidden'); // Hide login if open
+
+                        // We need a registration modal. For now, let's reuse/adapt the login modal or create a new one dynamically
+                        // Or better, assume there's a register modal or form we can show.
+                        // Let's create a simple dynamic modal for registration
+
+                        const registerHtml = `
+                    <div id="registerModal" class="fixed inset-0 bg-black bg-opacity-90 flex items-center justify-center z-50">
+                        <div class="bg-gray-800 p-8 rounded-lg shadow-xl border border-cyan-500/30 w-full max-w-md relative">
+                            <h2 class="text-2xl font-bold mb-6 text-cyan-400 font-display">Complete Registration</h2>
+                            <p class="mb-4 text-gray-300">You have been invited as <strong class="text-white">${data.role}</strong>.</p>
+                            
+                            <form id="registerForm" onsubmit="registerWithInvite(event, '${token}')">
+                                <div class="mb-4">
+                                    <label class="block text-gray-400 mb-2">Email</label>
+                                    <input type="email" value="${data.email}" disabled class="w-full bg-gray-900 border border-gray-700 rounded p-2 text-gray-500 cursor-not-allowed">
+                                </div>
+                                <div class="mb-4">
+                                    <label class="block text-gray-400 mb-2">Username</label>
+                                    <input type="text" id="regUsername" required class="w-full bg-gray-900 border border-gray-700 rounded p-2 text-white focus:border-cyan-500 focus:outline-none">
+                                </div>
+                                <div class="mb-6">
+                                    <label class="block text-gray-400 mb-2">Password</label>
+                                    <input type="password" id="regPassword" required class="w-full bg-gray-900 border border-gray-700 rounded p-2 text-white focus:border-cyan-500 focus:outline-none">
+                                </div>
+                                <button type="submit" class="w-full bg-cyan-600 hover:bg-cyan-500 text-white font-bold py-2 px-4 rounded transition-colors">
+                                    Register
+                                </button>
+                            </form>
+                        </div>
+                    </div>
+                `;
+
+                        document.body.insertAdjacentHTML('beforeend', registerHtml);
+
+                    } else {
+                        UI.alert('Invalid Invite', data.error || 'This invite link is invalid or expired.', 'error');
+                        window.history.replaceState({}, document.title, "/");
+                    }
+                } catch (error) {
+                    console.error('Error validating invite:', error);
+                    UI.alert('Error', 'Failed to validate invite link.', 'error');
+                }
+            }
+
+            window.registerWithInvite = async (event, token) => {
+                event.preventDefault();
+
+                const username = document.getElementById('regUsername').value;
+                const password = document.getElementById('regPassword').value;
+
+                await UI.asyncOperation(async () => {
+                    const response = await fetch('/api/auth/register/invite', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ token, username, password })
+                    });
+
+                    const result = await response.json();
+
+                    if (response.ok) {
+                        localStorage.setItem('jwt_token', result.token);
+                        document.getElementById('registerModal').remove();
+                        window.history.replaceState({}, document.title, "/");
+                        UI.toast('Registration successful! Welcome.', 'success');
+                        setTimeout(() => window.location.reload(), 1000);
+                    } else {
+                        throw new Error(result.error || 'Registration failed');
+                    }
+                }, 'Registering...');
+            };
+
         });
     });
 

@@ -45,11 +45,44 @@ class CollaborationService:
         db.session.add(comment)
         db.session.commit()
         
-        # Log activity
-        # (In a real app, we'd want to avoid circular imports or use signals)
-        # For simplicity, we'll just create the log here if possible, or skip it.
-        # Let's skip explicit activity logging here for now to keep it simple, 
-        # or we can add it if ActivityLog is available.
+        # Handle Mentions
+        import re
+        from api.models.user import User
+        from api.models.vulnerability import VulnerabilityInstance
+        from api.services.notification_service import NotificationService
+        
+        mentions = re.findall(r'@(\w+)', text)
+        if mentions:
+            mentioned_users = User.query.filter(User.username.in_(mentions)).all()
+            for mentioned_user in mentioned_users:
+                # 1. Send Notification
+                # Determine link based on resource type
+                link = None
+                if resource_type == 'vulnerability':
+                    link = f"/vulnerabilities/{resource_id}"
+                elif resource_type == 'ticket':
+                    link = f"/tickets/{resource_id}"
+                
+                commenter = User.query.get(user_id)
+                commenter_name = commenter.username if commenter else "Unknown User"
+
+                NotificationService.send_notification(
+                    user_id=mentioned_user.id,
+                    message=f"You were mentioned in a comment by {commenter_name}",
+                    subject="You were mentioned",
+                    type='mention',
+                    link=link
+                )
+                
+                # 2. Add to Vulnerability Assignees (if applicable)
+                if resource_type == 'vulnerability':
+                    vuln = VulnerabilityInstance.query.get(resource_id)
+                    if vuln and mentioned_user not in vuln.assigned_users:
+                        vuln.assigned_users.append(mentioned_user)
+                        db.session.commit()
+                        
+                        # Notify about assignment as well? Maybe redundant if we notify about mention.
+                        # Let's stick to just mention notification for now, but the assignment happens silently.
         
         return comment
 

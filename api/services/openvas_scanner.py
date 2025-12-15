@@ -143,6 +143,18 @@ class OpenVASScanner:
         except Exception as e:
             print(f"Error starting task: {e}")
             return None
+
+    def stop_task(self, task_id):
+        """Stop a running scan task"""
+        try:
+            connection = self._get_connection()
+            with Gmp(connection=connection) as gmp:
+                gmp.authenticate(self.username, self.password)
+                gmp.stop_task(task_id)
+                return True
+        except Exception as e:
+            print(f"Error stopping task: {e}")
+            return False
     
     def get_task_status(self, task_id):
         """Get task status"""

@@ -83,6 +83,7 @@ def create_target():
     return jsonify({'message': 'Target created', 'id': new_target.id}), 201
 
 @target_bp.route('/bulk', methods=['POST'])
+@jwt_required()
 def create_bulk_targets():
     """
     Create multiple targets from CIDR range, hostname, or single IP.
@@ -104,6 +105,8 @@ def create_bulk_targets():
     input_type = data['type'].lower()
     description = data.get('description', '')
     group_id = data.get('group_id')
+    
+    current_user_id = get_jwt_identity()
     
     created_targets = []
     errors = []
@@ -127,7 +130,8 @@ def create_bulk_targets():
                     name=data.get('name', input_value),
                     ip_address=input_value,
                     description=description or f'CIDR range: {input_value}',
-                    group_id=group_id
+                    group_id=group_id,
+                    user_id=current_user_id
                 )
                 db.session.add(target)
                 db.session.commit()
@@ -157,7 +161,8 @@ def create_bulk_targets():
                         name=f'{input_value} - {ip}',
                         ip_address=ip,
                         description=description or f'Auto-created from CIDR: {input_value}',
-                        group_id=group_id
+                        group_id=group_id,
+                        user_id=current_user_id
                     )
                     db.session.add(target)
                     created_targets.append(ip)
@@ -192,7 +197,8 @@ def create_bulk_targets():
                 name=input_value,
                 ip_address=ip_address,
                 description=description or f'Resolved from hostname: {input_value}',
-                group_id=group_id
+                group_id=group_id,
+                user_id=current_user_id
             )
             db.session.add(target)
             db.session.commit()
@@ -219,7 +225,8 @@ def create_bulk_targets():
                 name=data.get('name', input_value),
                 ip_address=input_value,
                 description=description,
-                group_id=group_id
+                group_id=group_id,
+                user_id=current_user_id
             )
             db.session.add(target)
             db.session.commit()
