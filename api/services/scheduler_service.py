@@ -58,10 +58,10 @@ class SchedulerService:
             
             # Add new job
             self.scheduler.add_job(
-                func=self._execute_scheduled_scan,
+                func='api.services.scheduler_service:execute_scan_job',
                 trigger=trigger,
                 id=job_id,
-                args=[schedule.id],
+                args=[schedule.id, self.app.config['SQLALCHEMY_DATABASE_URI']],
                 replace_existing=True
             )
             
@@ -95,45 +95,6 @@ class SchedulerService:
             return self.add_job(schedule)
         return True
     
-    def _execute_scheduled_scan(self, schedule_id):
-        """Execute a scheduled scan"""
-        with self.app.app_context():
-            schedule = Schedule.query.get(schedule_id)
-            
-            if not schedule or not schedule.enabled:
-                return
-            
-            # Import here to avoid circular imports
-            from api.services.scan_manager import ScanManager
-            
-            # Create scan manager
-            scan_manager = ScanManager(self.app)
-            
-            # Start scan
-            try:
-                scan_id = scan_manager.start_scan(
-                    target_id=schedule.target_id,
-                    scan_type=schedule.scan_type,
-                    scanner_args=schedule.scanner_args,
-                    openvas_config_id=schedule.openvas_config_id
-                )
-                
-                # Update last run time
-                schedule.last_run = datetime.utcnow()
-                
-                # Update next run time
-                job_id = f'schedule_{schedule_id}'
-                job = self.scheduler.get_job(job_id)
-                if job:
-                    schedule.next_run = job.next_run_time
-                
-                db.session.commit()
-                
-                print(f"Scheduled scan started: {scan_id} for schedule {schedule_id}")
-                
-            except Exception as e:
-                print(f"Error executing scheduled scan: {e}")
-    
     def get_next_run_time(self, cron_expression):
         """Calculate next run time for a cron expression"""
         try:
@@ -148,3 +109,51 @@ class SchedulerService:
         """Shutdown the scheduler"""
         if self.scheduler:
             self.scheduler.shutdown()
+
+def execute_scan_job(schedule_id, db_uri=None):
+    """Execute a scheduled scan (standalone function for APScheduler)"""
+    from api import create_app
+    from api.config import Config
+    
+    if db_uri:
+        class JobConfig(Config):
+            SQLALCHEMY_DATABASE_URI = db_uri
+        config_class = JobConfig
+    else:
+        config_class = Config
+        
+    app = create_app(config_class=config_class, init_scheduler=False)
+    
+    with app.app_context():
+        schedule = Schedule.query.get(schedule_id)
+        
+        if not schedule or not schedule.enabled:
+            return
+        
+        # Import here to avoid circular imports
+        from api.services.scan_manager import ScanManager
+        
+        # Create scan manager
+        scan_manager = ScanManager(app)
+        
+        # Start scan
+        try:
+            scan_id = scan_manager.start_scan(
+                target_id=schedule.target_id,
+                scan_type=schedule.scan_type,
+                scanner_args=schedule.scanner_args,
+                openvas_config_id=schedule.openvas_config_id
+            )
+            
+            # Update last run time
+            from datetime import timezone
+            schedule.last_run = datetime.now(timezone.utc)
+            
+            db.session.commit()
+            
+            print(f"Scheduled scan started: {scan_id} for schedule {schedule_id}")
+            
+        except Exception as e:
+            print(f"Error executing scheduled scan: {e}")
+    
+

@@ -21,6 +21,11 @@ def app():
         
         app = create_app(TestConfig)
         
+        # Ensure clean DB
+        import os
+        if os.path.exists('/tmp/test_vulntrack.db'):
+            os.remove('/tmp/test_vulntrack.db')
+            
         with app.app_context():
             # Import models to ensure they are registered with SQLAlchemy
             import api.models
@@ -33,9 +38,9 @@ def app():
 
 
 @pytest.fixture
-def auth_header(app):
+def test_user(app):
+    """Create a test user for use in tests."""
     from api.models.user import User
-    from flask_jwt_extended import create_access_token
     from werkzeug.security import generate_password_hash
     
     with app.app_context():
@@ -43,9 +48,26 @@ def auth_header(app):
         user.password_hash = generate_password_hash('password123')
         db.session.add(user)
         db.session.commit()
-        
-        token = create_access_token(identity=str(user.id))
+        # Refresh to ensure user is attached to session
+        db.session.refresh(user)
+        return user
+
+
+@pytest.fixture
+def auth_header(test_user, app):
+    """Create authorization header with JWT token."""
+    from flask_jwt_extended import create_access_token
+    
+    with app.app_context():
+        token = create_access_token(identity=str(test_user.id))
         return {'Authorization': f'Bearer {token}'}
+
+
+@pytest.fixture
+def auth_headers(auth_header):
+    """Alias for auth_header to support both naming conventions."""
+    return auth_header
+
 
 @pytest.fixture
 def client(app):

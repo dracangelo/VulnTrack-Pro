@@ -33,6 +33,7 @@ def generate_advanced_report():
     }
     """
     data = request.get_json()
+    print(f"DEBUG: Received report generation request: {data}")
     
     if not data:
         return jsonify({'error': 'No data provided'}), 400
@@ -174,6 +175,23 @@ def download_report(report_id):
         )
     else:
         return jsonify({'error': 'Unknown format'}), 400
+
+@report_bp.route('/<int:report_id>', methods=['GET'])
+def get_report(report_id):
+    report = Report.query.get(report_id)
+    if not report:
+        return jsonify({'error': 'Report not found'}), 404
+    return jsonify(report.to_dict())
+
+@report_bp.route('/<int:report_id>', methods=['DELETE'])
+def delete_report(report_id):
+    report = Report.query.get(report_id)
+    if not report:
+        return jsonify({'error': 'Report not found'}), 404
+        
+    db.session.delete(report)
+    db.session.commit()
+    return jsonify({'message': 'Report deleted successfully'})
 
 @report_bp.route('/stats', methods=['GET'])
 def get_stats():

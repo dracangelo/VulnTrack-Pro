@@ -115,24 +115,19 @@ class ScanManager:
                 db.session.commit()
                 
                 # Emit WebSocket event
-                from api.extensions import socketio
+                from api.socket_events import emit_scan_progress
                 from datetime import datetime
                 
                 elapsed = None
                 if scan.started_at:
                     elapsed = int((datetime.utcnow() - scan.started_at).total_seconds())
                 
-                socketio.emit('progress_update', {
-                    'id': scan_id,
-                    'status': scan.status,
-                    'progress': progress,
-                    'current_step': current_step,
-                    'eta_seconds': eta_seconds,
-                    'elapsed_seconds': elapsed,
-                    'vuln_count': scan.vuln_count or 0,
-                    'vuln_breakdown': scan.vuln_breakdown or {},
-                    'target_name': scan.target.name if scan.target else 'Unknown'
-                }, room=f'scan_{scan_id}', namespace='/scan-progress')
+                emit_scan_progress(
+                    scan_id=scan_id,
+                    progress=progress,
+                    current_step=current_step,
+                    eta=eta_seconds
+                )
 
     def _run_scan(self, scan_id, target_id, scan_type, scanner_args, openvas_config_id=None):
         """
@@ -142,8 +137,15 @@ class ScanManager:
             scan = Scan.query.get(scan_id)
             target = Target.query.get(target_id)
             
-            if not scan or not target:
-                print(f"Scan {scan_id} or Target {target_id} not found in thread")
+            if not scan:
+                print(f"Scan {scan_id} not found in thread")
+                return
+                
+            if not target:
+                print(f"Target {target_id} not found in thread")
+                scan.status = 'failed'
+                scan.current_step = f'Target {target_id} not found'
+                db.session.commit()
                 return
 
             scan.status = 'running'

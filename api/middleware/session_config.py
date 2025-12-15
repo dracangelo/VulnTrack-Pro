@@ -34,29 +34,34 @@ def init_session_config(app):
         """Make session permanent and refresh on each request."""
         session.permanent = True
         
-        # Check for session timeout
-        if 'last_activity' in session:
+        try:
+            # Check for session timeout
+            if 'last_activity' in session:
+                from datetime import datetime
+                last_activity = session['last_activity']
+                
+                # Convert to datetime if it's a string
+                if isinstance(last_activity, str):
+                    last_activity = datetime.fromisoformat(last_activity.replace('Z', '+00:00'))
+                
+                # Ensure both datetimes are timezone-naive for comparison
+                now = datetime.utcnow()
+                if hasattr(last_activity, 'tzinfo') and last_activity.tzinfo is not None:
+                    # Convert timezone-aware to naive UTC
+                    last_activity = last_activity.replace(tzinfo=None)
+                
+                # If more than 30 minutes since last activity, clear session
+                if (now - last_activity).total_seconds() > 1800:  # 30 minutes
+                    session.clear()
+                    return jsonify({'error': 'Session expired. Please login again.'}), 401
+            
+            # Update last activity timestamp (timezone-naive)
             from datetime import datetime
-            last_activity = session['last_activity']
-            
-            # Convert to datetime if it's a string
-            if isinstance(last_activity, str):
-                last_activity = datetime.fromisoformat(last_activity.replace('Z', '+00:00'))
-            
-            # Ensure both datetimes are timezone-naive for comparison
-            now = datetime.utcnow()
-            if hasattr(last_activity, 'tzinfo') and last_activity.tzinfo is not None:
-                # Convert timezone-aware to naive UTC
-                last_activity = last_activity.replace(tzinfo=None)
-            
-            # If more than 30 minutes since last activity, clear session
-            if (now - last_activity).total_seconds() > 1800:  # 30 minutes
-                session.clear()
-                return jsonify({'error': 'Session expired. Please login again.'}), 401
-        
-        # Update last activity timestamp (timezone-naive)
-        from datetime import datetime
-        session['last_activity'] = datetime.utcnow()
+            session['last_activity'] = datetime.utcnow()
+        except Exception as e:
+            app.logger.error(f"Session middleware error: {e}")
+            # Don't block request, just continue
+            pass
     
     # Session cleanup on logout
     @app.route('/api/auth/logout', methods=['POST'])

@@ -5,7 +5,7 @@ from flask_cors import CORS
 from api.config import Config
 import logging
 
-def create_app(config_class=Config):
+def create_app(config_class=Config, init_scheduler=True):
     app = Flask(__name__, static_folder='../web', static_url_path='/static')
     app.config.from_object(config_class)
     
@@ -92,8 +92,9 @@ def create_app(config_class=Config):
     OAuthService.init_app(app)
     
     # Initialize Scheduler Service
-    from api.services.scheduler_service import SchedulerService
-    app.scheduler_service = SchedulerService(app)
+    if init_scheduler:
+        from api.services.scheduler_service import SchedulerService
+        app.scheduler_service = SchedulerService(app)
     
     # Initialize Scan Manager
     from api.services.scan_manager import ScanManager

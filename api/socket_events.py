@@ -31,3 +31,14 @@ def handle_unsubscribe(data):
         leave_room(room)
         emit('unsubscribed', {'scan_id': scan_id})
         print(f'Client unsubscribed from scan {scan_id}')
+
+def emit_scan_progress(scan_id, progress, current_step, eta=None):
+    """Emit scan progress update to subscribers"""
+    room = f'scan_{scan_id}'
+    data = {
+        'scan_id': scan_id,
+        'progress': progress,
+        'current_step': current_step,
+        'eta': eta
+    }
+    socketio.emit('scan_progress', data, room=room, namespace='/scan-progress')
