@@ -43,62 +43,145 @@ body {
     top: 0;
     width: 240px;
     height: 100vh;
-    background: var(--bg-secondary);
+    background: linear-gradient(180deg, var(--bg-secondary) 0%, rgba(10, 22, 40, 0.98) 100%);
     border-right: 1px solid var(--border-color);
-    padding: 2rem 0;
+    padding: 0;
     z-index: 1000;
+    display: flex;
+    flex-direction: column;
+    box-shadow: 2px 0 12px rgba(0, 0, 0, 0.3);
 }
 
 .sidebar-logo {
-    padding: 0 1.5rem 2rem;
+    padding: 1.5rem 1.5rem 1.25rem;
     border-bottom: 1px solid var(--border-color);
+    flex-shrink: 0;
+    background: linear-gradient(135deg, rgba(0, 255, 217, 0.03), rgba(168, 85, 247, 0.03));
 }
 
 .sidebar-logo h1 {
     font-size: 1.5rem;
     font-weight: 700;
     color: var(--text-primary);
+    background: linear-gradient(135deg, var(--accent-cyan), var(--accent-purple));
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
 }
 
 .sidebar-logo p {
     font-size: 0.875rem;
     color: var(--accent-cyan);
     margin-top: 0.25rem;
+    opacity: 0.8;
 }
 
 .sidebar-nav {
-    margin-top: 2rem;
-    padding: 0 1rem;
+    flex: 1;
+    overflow-y: auto;
+    overflow-x: hidden;
+    padding: 1.5rem 1rem;
+    margin-bottom: 0;
+    -webkit-overflow-scrolling: touch;
+    scrollbar-width: thin;
+    scrollbar-color: var(--border-color) transparent;
+}
+
+/* Custom scrollbar for sidebar nav */
+.sidebar-nav::-webkit-scrollbar {
+    width: 4px;
+}
+
+.sidebar-nav::-webkit-scrollbar-track {
+    background: transparent;
+}
+
+.sidebar-nav::-webkit-scrollbar-thumb {
+    background: var(--border-color);
+    border-radius: 2px;
+}
+
+.sidebar-nav::-webkit-scrollbar-thumb:hover {
+    background: var(--accent-cyan);
 }
 
 .nav-item {
+    position: relative;
     display: flex;
     align-items: center;
-    padding: 0.75rem 1rem;
-    margin-bottom: 0.5rem;
+    padding: 0.875rem 1rem;
+    margin-bottom: 0.375rem;
     color: var(--text-secondary);
     text-decoration: none;
     border-radius: 0.5rem;
-    transition: all 0.2s;
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
     cursor: pointer;
+    font-size: 0.9375rem;
+    font-weight: 500;
+    overflow: hidden;
+}
+
+.nav-item::before {
+    content: '';
+    position: absolute;
+    left: 0;
+    top: 0;
+    height: 100%;
+    width: 3px;
+    background: var(--accent-cyan);
+    transform: scaleY(0);
+    transition: transform 0.3s ease;
 }
 
 .nav-item:hover {
-    background: var(--bg-card);
+    background: rgba(0, 255, 217, 0.05);
     color: var(--text-primary);
+    transform: translateX(4px);
+}
+
+.nav-item:hover::before {
+    transform: scaleY(0.6);
 }
 
 .nav-item.active {
-    background: rgba(0, 255, 217, 0.1);
+    background: linear-gradient(90deg, rgba(0, 255, 217, 0.15), rgba(0, 255, 217, 0.05));
     color: var(--accent-cyan);
-    border-left: 3px solid var(--accent-cyan);
+    font-weight: 600;
+    box-shadow: 0 2px 8px rgba(0, 255, 217, 0.1);
+}
+
+.nav-item.active::before {
+    transform: scaleY(1);
 }
 
 .nav-item svg,
 .nav-item i {
-    margin-right: 0.75rem;
+    margin-right: 0.875rem;
     width: 20px;
     height: 20px;
+    flex-shrink: 0;
+    transition: transform 0.3s ease;
+}
+
+.nav-item:hover svg,
+.nav-item:hover i {
+    transform: scale(1.1);
+}
+
+.nav-item.active svg,
+.nav-item.active i {
+    color: var(--accent-cyan);
+    filter: drop-shadow(0 0 4px rgba(0, 255, 217, 0.5));
+}
+
+/* Sidebar footer with New Scan button */
+.sidebar>div[style*="position: absolute"] {
+    position: relative !important;
+    bottom: auto !important;
+    padding: 1rem 1.5rem 1.5rem;
+    border-top: 1px solid var(--border-color);
+    background: linear-gradient(180deg, transparent, rgba(0, 0, 0, 0.2));
+    flex-shrink: 0;
 }
 
 /* Main Content */
@@ -350,6 +433,87 @@ tr:hover {
 .tab.active {
     color: var(--accent-cyan);
     border-bottom-color: var(--accent-cyan);
+}
+
+/* Premium Tab Buttons (for vulnerability details modal) */
+.tab-btn {
+    position: relative;
+    padding: 0.75rem 1.75rem;
+    background: linear-gradient(135deg, rgba(0, 255, 217, 0.05), rgba(168, 85, 247, 0.05));
+    border: 1px solid var(--border-color);
+    border-radius: 0.5rem;
+    color: var(--text-secondary);
+    font-weight: 600;
+    font-size: 0.875rem;
+    cursor: pointer;
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    overflow: hidden;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+}
+
+/* Animated background gradient */
+.tab-btn::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: -100%;
+    width: 100%;
+    height: 100%;
+    background: linear-gradient(90deg,
+            transparent,
+            rgba(0, 255, 217, 0.1),
+            transparent);
+    transition: left 0.5s ease;
+}
+
+.tab-btn:hover::before {
+    left: 100%;
+}
+
+.tab-btn:hover {
+    color: var(--text-primary);
+    border-color: rgba(0, 255, 217, 0.3);
+    background: linear-gradient(135deg, rgba(0, 255, 217, 0.1), rgba(168, 85, 247, 0.1));
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(0, 255, 217, 0.15);
+}
+
+.tab-btn:active {
+    transform: translateY(0);
+}
+
+.tab-btn.active {
+    color: var(--bg-primary);
+    background: linear-gradient(135deg, var(--accent-cyan), var(--accent-purple));
+    border-color: var(--accent-cyan);
+    box-shadow: 0 0 20px rgba(0, 255, 217, 0.3), 0 4px 12px rgba(0, 0, 0, 0.2);
+}
+
+.tab-btn.active::after {
+    content: '';
+    position: absolute;
+    bottom: -2px;
+    left: 50%;
+    transform: translateX(-50%);
+    width: 60%;
+    height: 2px;
+    background: var(--accent-cyan);
+    box-shadow: 0 0 8px var(--accent-cyan);
+}
+
+/* Icon support for tab buttons */
+.tab-btn i {
+    margin-right: 0.5rem;
+    font-size: 0.875rem;
+}
+
+/* Responsive tab buttons */
+@media (max-width: 768px) {
+    .tab-btn {
+        padding: 0.625rem 1.25rem;
+        font-size: 0.8125rem;
+    }
 }
 
 /* Radio Buttons */
@@ -627,11 +791,18 @@ tr:hover {
     height: 48px;
     align-items: center;
     justify-content: center;
+    transition: all 0.3s ease;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
 }
 
 .mobile-menu-toggle:hover {
     background: var(--bg-card-hover);
     border-color: var(--accent-cyan);
+    box-shadow: 0 0 12px rgba(0, 255, 217, 0.3);
+}
+
+.mobile-menu-toggle:active {
+    transform: scale(0.95);
 }
 
 /* Hamburger Icon */
@@ -750,18 +921,56 @@ tr:hover {
     /* Navigation */
     .sidebar {
         transform: translateX(-100%);
-        transition: transform 0.3s ease;
+        transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
         z-index: 1500;
         box-shadow: none;
+        width: 280px;
+        max-width: 85vw;
     }
 
     .sidebar.mobile-open {
         transform: translateX(0);
-        box-shadow: 4px 0 20px rgba(0, 0, 0, 0.5);
+        box-shadow: 8px 0 24px rgba(0, 0, 0, 0.6);
     }
 
     .mobile-menu-toggle {
         display: flex;
+    }
+
+    /* Compact sidebar logo on mobile */
+    .sidebar-logo {
+        padding: 1.25rem 1.25rem 1rem;
+    }
+
+    .sidebar-logo h1 {
+        font-size: 1.375rem;
+    }
+
+    .sidebar-logo p {
+        font-size: 0.8125rem;
+    }
+
+    /* Compact nav items on mobile */
+    .sidebar-nav {
+        padding: 1rem 0.875rem;
+    }
+
+    .nav-item {
+        padding: 0.75rem 0.875rem;
+        margin-bottom: 0.25rem;
+        font-size: 0.875rem;
+    }
+
+    .nav-item svg,
+    .nav-item i {
+        margin-right: 0.75rem;
+        width: 18px;
+        height: 18px;
+    }
+
+    /* Compact footer button on mobile */
+    .sidebar>div[style*="position"] {
+        padding: 0.875rem 1.25rem 1.25rem;
     }
 
     /* Layout */
@@ -823,9 +1032,10 @@ tr:hover {
     .form-input,
     .form-select,
     .form-textarea {
-        min-height: 44px;
+        min-height: 48px;
         font-size: 16px;
         /* Prevents iOS zoom */
+        padding: 0.875rem 1rem;
     }
 
     .radio-group {
@@ -835,6 +1045,12 @@ tr:hover {
 
     .form-group {
         margin-bottom: 1.25rem;
+    }
+
+    /* Force single column for all form grids */
+    .form-group .grid-2,
+    form .grid-2 {
+        grid-template-columns: 1fr !important;
     }
 
     /* Modals - Full Screen */
@@ -850,6 +1066,7 @@ tr:hover {
         margin: 0 !important;
         border-radius: 0 !important;
         overflow-y: auto;
+        -webkit-overflow-scrolling: touch;
     }
 
     .modal-header {
@@ -859,21 +1076,43 @@ tr:hover {
         z-index: 10;
         padding: 1rem;
         border-bottom: 1px solid var(--border-color);
+        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
+    }
+
+    .modal-content {
+        padding: 1rem;
+    }
+
+    .modal-footer {
+        position: sticky;
+        bottom: 0;
+        background: var(--bg-card);
+        padding: 1rem;
+        border-top: 1px solid var(--border-color);
+        box-shadow: 0 -2px 8px rgba(0, 0, 0, 0.2);
     }
 
     /* Adjust inline grids */
     div[style*="grid-template-columns: 1fr 1fr"],
-    div[style*="grid-template-columns: repeat(auto-fit"] {
+    div[style*="grid-template-columns: repeat(auto-fit"],
+    div[style*="grid-template-columns: repeat(2"] {
         grid-template-columns: 1fr !important;
     }
 
     /* Button groups */
     .flex.gap-4 {
         flex-direction: column;
+        gap: 0.75rem;
     }
 
     .flex.gap-4 .btn {
         width: 100%;
+    }
+
+    /* Card header button groups */
+    .card-header {
+        flex-wrap: wrap;
+        gap: 0.75rem;
     }
 
     /* Charts */
@@ -976,14 +1215,17 @@ tr:hover {
     left: 0;
     right: 0;
     bottom: 0;
-    background: rgba(0, 0, 0, 0.7);
-    backdrop-filter: blur(2px);
+    background: rgba(0, 0, 0, 0.75);
+    backdrop-filter: blur(4px);
     z-index: 1400;
+    opacity: 0;
     transition: opacity 0.3s ease;
+    cursor: pointer;
 }
 
 .mobile-overlay.active {
     display: block;
+    opacity: 1;
     animation: fadeIn 0.3s ease;
 }
 
@@ -1026,6 +1268,7 @@ tr:hover {
 @media (max-height: 500px) and (orientation: landscape) {
     .sidebar {
         width: 60%;
+        max-width: 320px;
     }
 
     .main-content {
@@ -1035,6 +1278,7 @@ tr:hover {
 
     .page-title {
         font-size: 1.25rem;
+        margin-bottom: 0.75rem;
     }
 
     .card {
@@ -1045,10 +1289,20 @@ tr:hover {
     /* Make modals scrollable in landscape */
     .modal {
         overflow-y: auto;
+        max-height: 100vh;
     }
 
     .log-output {
         max-height: 150px;
+    }
+
+    /* Reduce header sizes in landscape */
+    .page-header {
+        margin-bottom: 1rem;
+    }
+
+    .card-header {
+        margin-bottom: 1rem;
     }
 }
 
@@ -1084,20 +1338,21 @@ tr:hover {
    IMPROVED BUTTON GROUPS ON MOBILE
    ======================================== */
 @media (max-width: 768px) {
+
     /* Stack button groups vertically */
     .card-header .btn-group,
-    .card-header > .flex {
+    .card-header>.flex {
         flex-direction: column;
         width: 100%;
     }
 
     .card-header .btn-group .btn,
-    .card-header > .flex .btn {
+    .card-header>.flex .btn {
         width: 100%;
         margin-bottom: 0.5rem;
     }
 
-    .card-header > .flex:last-child .btn:last-child {
+    .card-header>.flex:last-child .btn:last-child {
         margin-bottom: 0;
     }
 }
@@ -1106,6 +1361,7 @@ tr:hover {
    IMPROVED MODAL RESPONSIVENESS
    ======================================== */
 @media (max-width: 768px) {
+
     /* Ensure modal content is readable */
     .modal .card {
         max-width: 100% !important;
@@ -1135,6 +1391,7 @@ tr:hover {
    ENHANCED TOUCH TARGETS
    ======================================== */
 @media (max-width: 768px) {
+
     /* Ensure all clickable elements are at least 44x44px */
     a,
     button,
@@ -1176,6 +1433,22 @@ tr:hover {
         height: 24px;
         margin-right: 0.75rem;
     }
+
+    /* Better touch targets for checkboxes */
+    input[type="checkbox"] {
+        min-width: 20px;
+        min-height: 20px;
+        cursor: pointer;
+    }
+
+    /* Improve action button spacing in cards */
+    .card-header .btn {
+        margin-bottom: 0.5rem;
+    }
+
+    .card-header .btn:last-child {
+        margin-bottom: 0;
+    }
 }
 
 /* ========================================
@@ -1191,11 +1464,52 @@ tr:hover {
         background:
             linear-gradient(to right, var(--bg-card) 30%, rgba(26, 35, 50, 0)),
             linear-gradient(to right, rgba(26, 35, 50, 0), var(--bg-card) 70%) 100% 0,
-            radial-gradient(farthest-side at 0% 50%, rgba(0, 255, 217, 0.2), rgba(0, 0, 0, 0)),
-            radial-gradient(farthest-side at 100% 50%, rgba(0, 255, 217, 0.2), rgba(0, 0, 0, 0)) 100% 0;
+            radial-gradient(farthest-side at 0% 50%, rgba(0, 255, 217, 0.3), rgba(0, 0, 0, 0)),
+            radial-gradient(farthest-side at 100% 50%, rgba(0, 255, 217, 0.3), rgba(0, 0, 0, 0)) 100% 0;
         background-repeat: no-repeat;
         background-size: 40px 100%, 40px 100%, 14px 100%, 14px 100%;
         background-attachment: local, local, scroll, scroll;
+    }
+
+    /* Add visual hint for scrollable tables */
+    .table-container::after {
+        content: '← Scroll →';
+        position: absolute;
+        bottom: 0.5rem;
+        right: 0.5rem;
+        background: rgba(0, 255, 217, 0.1);
+        color: var(--accent-cyan);
+        padding: 0.25rem 0.5rem;
+        border-radius: 0.25rem;
+        font-size: 0.75rem;
+        pointer-events: none;
+        opacity: 0.7;
+        animation: pulse 2s infinite;
+    }
+
+    @keyframes pulse {
+
+        0%,
+        100% {
+            opacity: 0.7;
+        }
+
+        50% {
+            opacity: 0.3;
+        }
+    }
+
+    /* Improve table action buttons */
+    table .btn {
+        padding: 0.5rem 0.75rem;
+        font-size: 0.8125rem;
+        white-space: nowrap;
+    }
+
+    /* Stack action buttons in table cells if multiple */
+    td .flex.gap-4 {
+        flex-direction: column;
+        gap: 0.5rem;
     }
 }
 
@@ -1203,6 +1517,7 @@ tr:hover {
    RESPONSIVE GRID IMPROVEMENTS
    ======================================== */
 @media (max-width: 768px) {
+
     /* Force single column for complex grids */
     .grid-2,
     .grid-3,
@@ -1215,12 +1530,18 @@ tr:hover {
         grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
         gap: 1rem;
     }
+
+    /* Better spacing for grid items */
+    .grid {
+        gap: 1rem;
+    }
 }
 
 /* ========================================
    PRINT STYLES
    ======================================== */
 @media print {
+
     .sidebar,
     .mobile-menu-toggle,
     .mobile-overlay,
@@ -1244,6 +1565,7 @@ tr:hover {
         color: black;
     }
 }
+
 /* Comment Section Styles */
 .comment-section {
     display: flex;
@@ -1253,7 +1575,8 @@ tr:hover {
 
 .comment-input-wrapper {
     position: relative;
-    background: #0A1628; /* Darker background */
+    background: #0A1628;
+    /* Darker background */
     border: 1px solid var(--border-color);
     border-radius: 0.5rem;
     padding: 0.75rem;
@@ -1276,7 +1599,8 @@ tr:hover {
     padding: 0;
     font-family: inherit;
     font-size: 0.95rem;
-    padding-bottom: 3rem; /* Space for button */
+    padding-bottom: 3rem;
+    /* Space for button */
 }
 
 .comment-textarea::placeholder {
@@ -1297,7 +1621,8 @@ tr:hover {
     font-size: 0.875rem;
     font-weight: 600;
     background: var(--accent-cyan);
-    color: var(--bg-primary); /* Dark text on cyan button */
+    color: var(--bg-primary);
+    /* Dark text on cyan button */
     border: none;
     border-radius: 0.375rem;
     cursor: pointer;
@@ -1384,17 +1709,20 @@ tr:hover {
 .activity-item::before {
     content: '';
     position: absolute;
-    left: 18px; /* Center of icon */
+    left: 18px;
+    /* Center of icon */
     top: 36px;
     bottom: -12px;
     width: 1px;
     background: var(--border-color);
-    display: none; /* Hidden for now unless requested */
+    display: none;
+    /* Hidden for now unless requested */
 }
 
 .activity-icon {
     width: 36px;
-    height: 36px; /* Fixed height for alignment */
+    height: 36px;
+    /* Fixed height for alignment */
     display: flex;
     align-items: center;
     justify-content: center;
@@ -1404,7 +1732,8 @@ tr:hover {
 
 .activity-content-wrapper {
     flex: 1;
-    padding-top: 0.5rem; /* Align with icon center roughly */
+    padding-top: 0.5rem;
+    /* Align with icon center roughly */
 }
 
 .activity-text {
@@ -1502,6 +1831,43 @@ tr:hover {
 @media (max-width: 768px) {
     .profile-container {
         grid-template-columns: 1fr;
+        gap: 1rem;
+    }
+
+    .profile-sidebar {
+        display: flex;
+        overflow-x: auto;
+        border-radius: 0.5rem;
+        -webkit-overflow-scrolling: touch;
+    }
+
+    .profile-nav-item {
+        white-space: nowrap;
+        flex-shrink: 0;
+        padding: 0.875rem 1.25rem;
+        border-left: none;
+        border-bottom: 3px solid transparent;
+    }
+
+    .profile-nav-item.active {
+        border-left: none;
+        border-bottom-color: var(--accent-cyan);
+    }
+
+    .profile-content-card {
+        padding: 1rem;
+    }
+
+    .profile-header {
+        flex-direction: column;
+        align-items: flex-start;
+        text-align: left;
+    }
+
+    .profile-avatar-large {
+        width: 64px;
+        height: 64px;
+        font-size: 1.5rem;
     }
 }
 
@@ -1569,4 +1935,20 @@ tr:hover {
     height: 8px;
     background: var(--accent-cyan);
     border-radius: 50%;
+}
+
+/* Responsive notification items */
+@media (max-width: 768px) {
+    .notification-item {
+        flex-direction: column;
+        gap: 0.75rem;
+    }
+
+    .notification-icon {
+        align-self: flex-start;
+    }
+
+    .notification-content {
+        width: 100%;
+    }
 }
