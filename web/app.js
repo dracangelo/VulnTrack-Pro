@@ -1024,7 +1024,8 @@ document.addEventListener('DOMContentLoaded', () => {
 
     async function fetchActivityFeed() {
         try {
-            const response = await fetch('/api/collaboration/activity');
+            // Use auth endpoint to get only current user's activity
+            const response = await fetch('/api/auth/activity');
             const activities = await response.json();
             renderActivityFeed(activities);
         } catch (error) {
@@ -1037,18 +1038,16 @@ document.addEventListener('DOMContentLoaded', () => {
         if (!activityList) return;
 
         if (activities.length === 0) {
-            activityList.innerHTML = '<tr><td colspan="4" class="text-center">No recent activity</td></tr>';
+            activityList.innerHTML = '<tr><td colspan="3" class="text-center">No recent activity</td></tr>';
             return;
         }
 
+        // Only show current user's activity (no username needed)
         activityList.innerHTML = activities.map(activity => `
             <tr>
                 <td>${new Date(activity.timestamp).toLocaleString()}</td>
-                <td>
-                    <strong>${activity.user}</strong> ${activity.action.replace('_', ' ')}
-                </td>
-                <td>${activity.target_type} #${activity.target_id}</td>
-                <td>${activity.details}</td>
+                <td>${activity.action.replace(/_/g, ' ')}</td>
+                <td>${activity.details || '-'}</td>
             </tr>
         `).join('');
     }

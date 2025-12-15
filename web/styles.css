@@ -1952,3 +1952,58 @@ tr:hover {
         width: 100%;
     }
 }
+
+/* ========================================
+   ACTIVITY TABLE - SCROLLABLE
+   ======================================== */
+/* Activity Table - Scrollable after 4 items */
+.activity-table-container {
+    max-height: 320px;
+    /* Approximately 4 rows + header */
+    overflow-y: auto;
+    -webkit-overflow-scrolling: touch;
+}
+
+.activity-table-container table {
+    min-width: 100%;
+}
+
+/* Sticky header for activity table */
+.activity-table-container thead {
+    position: sticky;
+    top: 0;
+    z-index: 10;
+    background: var(--bg-secondary);
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+}
+
+.activity-table-container thead th {
+    background: var(--bg-secondary);
+}
+
+/* Custom scrollbar for activity table */
+.activity-table-container::-webkit-scrollbar {
+    width: 6px;
+}
+
+.activity-table-container::-webkit-scrollbar-track {
+    background: var(--bg-secondary);
+    border-radius: 3px;
+}
+
+.activity-table-container::-webkit-scrollbar-thumb {
+    background: var(--border-color);
+    border-radius: 3px;
+}
+
+.activity-table-container::-webkit-scrollbar-thumb:hover {
+    background: var(--accent-cyan);
+}
+
+/* Responsive activity table */
+@media (max-width: 768px) {
+    .activity-table-container {
+        max-height: 280px;
+        /* Slightly smaller on mobile */
+    }
+}
