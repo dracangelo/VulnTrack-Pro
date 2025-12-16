@@ -43,15 +43,12 @@ class BaseReport:
             List of vulnerability instances
         """
         query = VulnerabilityInstance.query
-        print(f"DEBUG: Initial query: {query}")
         
         # Apply filters
         if 'scan_ids' in self.filters:
-            print(f"DEBUG: Filtering by scan_ids: {self.filters['scan_ids']}")
             query = query.filter(VulnerabilityInstance.scan_id.in_(self.filters['scan_ids']))
         
         if 'severity' in self.filters:
-            print(f"DEBUG: Filtering by severity: {self.filters['severity']}")
             query = query.join(Vulnerability).filter(
                 Vulnerability.severity.in_(self.filters['severity'])
             )
@@ -65,14 +62,11 @@ class BaseReport:
         if 'date_range' in self.filters:
             date_range = self.filters['date_range']
             if 'start' in date_range:
-                query = query.filter(VulnerabilityInstance.discovered_at >= date_range['start'])
+                query = query.filter(VulnerabilityInstance.detected_at >= date_range['start'])
             if 'end' in date_range:
-                query = query.filter(VulnerabilityInstance.discovered_at <= date_range['end'])
+                query = query.filter(VulnerabilityInstance.detected_at <= date_range['end'])
         
-        print("DEBUG: Executing query...")
-        results = query.all()
-        print(f"DEBUG: Query returned {len(results)} results")
-        return results
+        return query.all()
     
     def get_severity_counts(self, vulnerabilities: List[VulnerabilityInstance]) -> Dict[str, int]:
         """

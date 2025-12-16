@@ -89,7 +89,7 @@ class ComplianceReport(BaseReport):
                 'target': target.ip_address if target else 'N/A',
                 'port': vuln_instance.port or 'N/A',
                 'status': vuln_instance.status or 'Open',
-                'discovered_at': self.format_date(vuln_instance.discovered_at),
+                'discovered_at': self.format_date(vuln_instance.detected_at),
                 'compliance_requirement': requirement
             })
         

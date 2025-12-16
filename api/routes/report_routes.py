@@ -1,4 +1,4 @@
-from flask import Blueprint, jsonify, request, Response, send_file
+from flask import Blueprint, jsonify, request, Response, send_file, current_app
 from io import BytesIO
 from api.models.report import Report
 from api.models.scan import Scan
@@ -21,19 +21,10 @@ def generate_advanced_report():
     {
         "type": "executive|technical|compliance|trend|comparison",
         "format": "excel|html|markdown|pdf|csv|json",
-        "filters": {
-            "scan_ids": [1, 2, 3],
-            "severity": ["critical", "high"],
-            "date_range": {"start": "2024-01-01", "end": "2024-12-31"}
-        },
-        "compliance_standard": "pci-dss|hipaa|soc2",  // for compliance reports
-        "period_days": 30,  // for trend reports
-        "scan_a_id": 1,  // for comparison reports
-        "scan_b_id": 2   // for comparison reports
+        "filters": {}
     }
     """
     data = request.get_json()
-    print(f"DEBUG: Received report generation request: {data}")
     
     if not data:
         return jsonify({'error': 'No data provided'}), 400

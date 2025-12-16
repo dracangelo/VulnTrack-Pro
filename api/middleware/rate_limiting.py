@@ -16,6 +16,7 @@ def get_user_identifier():
     from flask import session
     
     # Try to get user_id from session
+    # Try to get user_id from session
     user_id = session.get('user_id')
     if user_id:
         return f"user:{user_id}"

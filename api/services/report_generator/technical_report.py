@@ -35,9 +35,9 @@ class TechnicalReport(BaseReport):
                 'target': target.ip_address if target else 'N/A',
                 'port': vuln_instance.port or 'N/A',
                 'status': vuln_instance.status or 'Open',
-                'discovered_at': self.format_date(vuln_instance.discovered_at),
+                'discovered_at': self.format_date(vuln_instance.detected_at),
                 'description': vuln.description,
-                'solution': vuln.solution
+                'solution': vuln.remediation
             })
         
         # Generate detailed recommendations
@@ -62,7 +62,7 @@ class TechnicalReport(BaseReport):
             count = vuln_group['count']
             
             # Use solution from vulnerability if available
-            recommendation = vuln.solution or "Apply security patches and follow vendor guidelines."
+            recommendation = vuln.remediation or "Apply security patches and follow vendor guidelines."
             
             recommendations.append({
                 'priority': vuln.severity.capitalize(),

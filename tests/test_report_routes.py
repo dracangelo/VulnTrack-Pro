@@ -279,8 +279,6 @@ def test_generate_report_with_filters(client, test_user):
         }
     }
     response = client.post('/api/reports/generate', json=report_data)
-    if response.status_code not in [200, 201]:
-        print(f"Error response: {response.get_json()}")
     assert response.status_code in [200, 201]
 
 

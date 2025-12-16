@@ -1,0 +1,140 @@
+============================= test session starts ==============================
+platform linux -- Python 3.13.9, pytest-9.0.1, pluggy-1.6.0 -- /home/vng370/Documents/coding/python/vulnhub/venv/bin/python3
+cachedir: .pytest_cache
+rootdir: /home/vng370/Documents/coding/python/vulnhub
+plugins: anyio-4.11.0, cov-7.0.0
+collecting ... collected 1 item
+
+tests/test_report_routes.py::test_generate_report_with_filters ERROR
+
+==================================== ERRORS ====================================
+_____________ ERROR at setup of test_generate_report_with_filters ______________
+
+    @pytest.fixture
+    def app():
+        with patch('api.services.scheduler_service.SchedulerService') as MockScheduler:
+            # Configure mock to do nothing
+            mock_instance = MockScheduler.return_value
+            mock_instance.start.return_value = None
+            mock_instance.add_job.return_value = True
+    
+>           app = create_app(TestConfig)
+                  ^^^^^^^^^^^^^^^^^^^^^^
+
+tests/conftest.py:22: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+config_class = <class 'tests.conftest.TestConfig'>, init_scheduler = True
+
+    def create_app(config_class=Config, init_scheduler=True):
+        app = Flask(__name__, static_folder='../web', static_url_path='/static')
+        app.config.from_object(config_class)
+    
+        # Initialize extensions
+        from api.extensions import db, migrate, limiter, socketio, jwt
+        from api.cache import cache
+    
+        Compress(app)
+        cache.init_app(app)
+    
+        # Initialize rate limiter (increased for development)
+        app.config['RATELIMIT_DEFAULT'] = '500 per hour'  # Increased from 50 to 500
+    
+        db.init_app(app)
+        migrate.init_app(app, db)
+        limiter.init_app(app)
+        socketio.init_app(app)
+        jwt.init_app(app)
+    
+        # Initialize CORS (Allow all for development, restrict in prod)
+        CORS(app)
+    
+        # Initialize Talisman (Security Headers)
+        # Uncomment when flask-talisman is installed
+        # csp = {
+        #     'default-src': ["'self'"],
+        #     'script-src': ["'self'", "'unsafe-inline'", 'cdn.jsdelivr.net', 'cdnjs.cloudflare.com'],
+        #     'style-src': ["'self'", "'unsafe-inline'", 'cdnjs.cloudflare.com'],
+        #     'img-src': ["'self'", 'data:'],
+        #     'font-src': ["'self'", 'cdnjs.cloudflare.com'],
+        # }
+        # Talisman(app, force_https=False, content_security_policy=csp)
+    
+        # Register Blueprints
+        from api.routes.scan_routes import scan_bp
+>       from api.routes.report_routes import report_bp
+E         File "/home/vng370/Documents/coding/python/vulnhub/api/routes/report_routes.py", line 241
+E           """Download PDF report for a scan with database caching"""
+E                                                                  ^
+E       SyntaxError: unterminated triple-quoted string literal (detected at line 271)
+
+api/__init__.py:44: SyntaxError
+=============================== warnings summary ===============================
+tests/test_report_routes.py::test_generate_report_with_filters
+tests/test_report_routes.py::test_generate_report_with_filters
+tests/test_report_routes.py::test_generate_report_with_filters
+  /home/vng370/Documents/coding/python/vulnhub/venv/lib/python3.13/site-packages/werkzeug/routing/rules.py:751: DeprecationWarning: ast.Str is deprecated and will be removed in Python 3.14; use ast.Constant instead
+    parts = parts or [ast.Str("")]
+
+tests/test_report_routes.py::test_generate_report_with_filters
+tests/test_report_routes.py::test_generate_report_with_filters
+tests/test_report_routes.py::test_generate_report_with_filters
+tests/test_report_routes.py::test_generate_report_with_filters
+tests/test_report_routes.py::test_generate_report_with_filters
+tests/test_report_routes.py::test_generate_report_with_filters
+  /home/vng370/Documents/coding/python/vulnhub/venv/lib/python3.13/site-packages/werkzeug/routing/rules.py:748: DeprecationWarning: ast.Str is deprecated and will be removed in Python 3.14; use ast.Constant instead
+    _convert(elem) if is_dynamic else ast.Str(s=elem)
+
+tests/test_report_routes.py::test_generate_report_with_filters
+tests/test_report_routes.py::test_generate_report_with_filters
+tests/test_report_routes.py::test_generate_report_with_filters
+tests/test_report_routes.py::test_generate_report_with_filters
+tests/test_report_routes.py::test_generate_report_with_filters
+tests/test_report_routes.py::test_generate_report_with_filters
+  /usr/lib/python3.13/ast.py:602: DeprecationWarning: Constant.__init__ got an unexpected keyword argument 's'. Support for arbitrary keyword arguments is deprecated and will be removed in Python 3.15.
+    return Constant(*args, **kwargs)
+
+tests/test_report_routes.py::test_generate_report_with_filters
+tests/test_report_routes.py::test_generate_report_with_filters
+tests/test_report_routes.py::test_generate_report_with_filters
+tests/test_report_routes.py::test_generate_report_with_filters
+tests/test_report_routes.py::test_generate_report_with_filters
+tests/test_report_routes.py::test_generate_report_with_filters
+  /usr/lib/python3.13/ast.py:602: DeprecationWarning: Attribute s is deprecated and will be removed in Python 3.14; use value instead
+    return Constant(*args, **kwargs)
+
+tests/test_report_routes.py::test_generate_report_with_filters
+tests/test_report_routes.py::test_generate_report_with_filters
+tests/test_report_routes.py::test_generate_report_with_filters
+tests/test_report_routes.py::test_generate_report_with_filters
+tests/test_report_routes.py::test_generate_report_with_filters
+tests/test_report_routes.py::test_generate_report_with_filters
+  /usr/lib/python3.13/ast.py:602: DeprecationWarning: Constant.__init__ missing 1 required positional argument: 'value'. This will become an error in Python 3.15.
+    return Constant(*args, **kwargs)
+
+tests/test_report_routes.py: 10 warnings
+  /home/vng370/Documents/coding/python/vulnhub/venv/lib/python3.13/site-packages/werkzeug/routing/rules.py:755: DeprecationWarning: ast.Str is deprecated and will be removed in Python 3.14; use ast.Constant instead
+    if isinstance(p, ast.Str) and isinstance(ret[-1], ast.Str):
+
+tests/test_report_routes.py::test_generate_report_with_filters
+tests/test_report_routes.py::test_generate_report_with_filters
+tests/test_report_routes.py::test_generate_report_with_filters
+tests/test_report_routes.py::test_generate_report_with_filters
+tests/test_report_routes.py::test_generate_report_with_filters
+tests/test_report_routes.py::test_generate_report_with_filters
+tests/test_report_routes.py::test_generate_report_with_filters
+tests/test_report_routes.py::test_generate_report_with_filters
+  /home/vng370/Documents/coding/python/vulnhub/venv/lib/python3.13/site-packages/werkzeug/routing/rules.py:756: DeprecationWarning: Attribute s is deprecated and will be removed in Python 3.14; use value instead
+    ret[-1] = ast.Str(ret[-1].s + p.s)
+
+tests/test_report_routes.py::test_generate_report_with_filters
+tests/test_report_routes.py::test_generate_report_with_filters
+tests/test_report_routes.py::test_generate_report_with_filters
+tests/test_report_routes.py::test_generate_report_with_filters
+  /home/vng370/Documents/coding/python/vulnhub/venv/lib/python3.13/site-packages/werkzeug/routing/rules.py:756: DeprecationWarning: ast.Str is deprecated and will be removed in Python 3.14; use ast.Constant instead
+    ret[-1] = ast.Str(ret[-1].s + p.s)
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+=========================== short test summary info ============================
+ERROR tests/test_report_routes.py::test_generate_report_with_filters -   File...
+======================== 49 warnings, 1 error in 0.94s =========================

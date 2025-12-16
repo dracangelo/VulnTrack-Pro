@@ -63,7 +63,7 @@ class TrendReport(BaseReport):
                 'target': target.ip_address if target else 'N/A',
                 'port': vuln_instance.port or 'N/A',
                 'status': vuln_instance.status or 'Open',
-                'discovered_at': self.format_date(vuln_instance.discovered_at)
+                'discovered_at': self.format_date(vuln_instance.detected_at)
             })
         
         # Generate trend-based recommendations
@@ -86,7 +86,7 @@ class TrendReport(BaseReport):
         weeks = defaultdict(lambda: {'critical': 0, 'high': 0, 'medium': 0, 'low': 0, 'info': 0, 'total': 0})
         
         for vuln_instance in vulnerabilities:
-            discovered = vuln_instance.discovered_at
+            discovered = vuln_instance.detected_at
             if not discovered:
                 continue
             

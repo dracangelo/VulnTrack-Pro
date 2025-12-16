@@ -1,0 +1,145 @@
+============================= test session starts ==============================
+platform linux -- Python 3.13.9, pytest-9.0.1, pluggy-1.6.0 -- /home/vng370/Documents/coding/python/vulnhub/venv/bin/python3
+cachedir: .pytest_cache
+rootdir: /home/vng370/Documents/coding/python/vulnhub
+plugins: anyio-4.11.0, cov-7.0.0
+collecting ... collected 1 item
+
+tests/test_report_routes.py::test_generate_report_with_filters 2025-12-16 09:19:18,122 - api - INFO - Security headers middleware initialized
+2025-12-16 09:19:18,122 - api - INFO - Security headers middleware initialized
+2025-12-16 09:19:18,122 - api - INFO - Input validation middleware initialized
+2025-12-16 09:19:18,122 - api - INFO - Input validation middleware initialized
+2025-12-16 09:19:18,129 - api - INFO - Session configuration initialized (timeout: 30 minutes)
+2025-12-16 09:19:18,129 - api - INFO - Session configuration initialized (timeout: 30 minutes)
+2025-12-16 09:19:18,130 - api - INFO - Enhanced rate limiting initialized
+2025-12-16 09:19:18,130 - api - INFO - Enhanced rate limiting initialized
+2025-12-16 09:19:18,130 - api - INFO - Audit logging middleware initialized
+2025-12-16 09:19:18,130 - api - INFO - Audit logging middleware initialized
+2025-12-16 09:19:18,131 - api - INFO - All middleware initialized successfully
+2025-12-16 09:19:18,131 - api - INFO - All middleware initialized successfully
+2025-12-16 09:19:19,457 - api - INFO - POST /api/reports/generate from 127.0.0.1
+2025-12-16 09:19:19,457 - api - INFO - POST /api/reports/generate from 127.0.0.1
+Traceback (most recent call last):
+  File "/home/vng370/Documents/coding/python/vulnhub/api/routes/report_routes.py", line 48, in generate_advanced_report
+    report_data, content_type = NewReportGenerator.generate(
+                                ~~~~~~~~~~~~~~~~~~~~~~~~~~~^
+        report_type=report_type,
+        ^^^^^^^^^^^^^^^^^^^^^^^^
+    ...<2 lines>...
+        **kwargs
+        ^^^^^^^^
+    )
+    ^
+  File "/home/vng370/Documents/coding/python/vulnhub/api/services/report_generator/__init__.py", line 80, in generate
+    data = report.gather_data()
+  File "/home/vng370/Documents/coding/python/vulnhub/api/services/report_generator/technical_report.py", line 40, in gather_data
+    'solution': vuln.solution
+                ^^^^^^^^^^^^^
+AttributeError: 'Vulnerability' object has no attribute 'solution'
+DEBUG: Report generation exception: 'Vulnerability' object has no attribute 'solution'
+FAILED
+
+=================================== FAILURES ===================================
+______________________ test_generate_report_with_filters _______________________
+
+client = <FlaskClient <Flask 'api'>>, test_user = <User testuser>
+
+    def test_generate_report_with_filters(client, test_user):
+        """Test generating report with severity filters."""
+        target = Target(ip_address='192.168.1.28', name='Target 28', user_id=test_user.id)
+        db.session.add(target)
+        db.session.flush()
+    
+        scan = Scan(target_id=target.id, scan_type='nmap_quick', status='completed', user_id=test_user.id)
+        db.session.add(scan)
+        db.session.flush()
+    
+        # Create vulnerabilities with different severities
+        for severity in ['critical', 'high', 'medium']:
+            vuln = Vulnerability(name=f'{severity} vuln', severity=severity)
+            db.session.add(vuln)
+            db.session.flush()
+    
+            vi = VulnerabilityInstance(
+                vulnerability_id=vuln.id,
+                target_id=target.id,
+                scan_id=scan.id,
+                status='open'
+            )
+            db.session.add(vi)
+    
+        db.session.commit()
+        db.session.remove()
+    
+        report_data = {
+            'report_type': 'executive',
+            'format': 'pdf',
+            'title': 'Filtered Report',
+            'filters': {
+                'severity': ['critical', 'high']
+            }
+        }
+        response = client.post('/api/reports/generate', json=report_data)
+>       assert response.status_code in [200, 201]
+E       assert 500 in [200, 201]
+E        +  where 500 = <WrapperTestResponse streamed [500 INTERNAL SERVER ERROR]>.status_code
+
+tests/test_report_routes.py:282: AssertionError
+------------------------------ Captured log setup ------------------------------
+INFO     api:security_headers.py:77 Security headers middleware initialized
+INFO     api:input_validation.py:203 Input validation middleware initialized
+INFO     api:session_config.py:73 Session configuration initialized (timeout: 30 minutes)
+INFO     api:rate_limiting.py:61 Enhanced rate limiting initialized
+INFO     api:audit_logging.py:205 Audit logging middleware initialized
+INFO     api:__init__.py:39 All middleware initialized successfully
+------------------------------ Captured log call -------------------------------
+INFO     api:input_validation.py:198 POST /api/reports/generate from 127.0.0.1
+=============================== warnings summary ===============================
+tests/test_report_routes.py: 263 warnings
+  /home/vng370/Documents/coding/python/vulnhub/venv/lib/python3.13/site-packages/werkzeug/routing/rules.py:751: DeprecationWarning: ast.Str is deprecated and will be removed in Python 3.14; use ast.Constant instead
+    parts = parts or [ast.Str("")]
+
+tests/test_report_routes.py: 1632 warnings
+  /home/vng370/Documents/coding/python/vulnhub/venv/lib/python3.13/site-packages/werkzeug/routing/rules.py:748: DeprecationWarning: ast.Str is deprecated and will be removed in Python 3.14; use ast.Constant instead
+    _convert(elem) if is_dynamic else ast.Str(s=elem)
+
+tests/test_report_routes.py: 1632 warnings
+  /usr/lib/python3.13/ast.py:602: DeprecationWarning: Constant.__init__ got an unexpected keyword argument 's'. Support for arbitrary keyword arguments is deprecated and will be removed in Python 3.15.
+    return Constant(*args, **kwargs)
+
+tests/test_report_routes.py: 1632 warnings
+  /usr/lib/python3.13/ast.py:602: DeprecationWarning: Attribute s is deprecated and will be removed in Python 3.14; use value instead
+    return Constant(*args, **kwargs)
+
+tests/test_report_routes.py: 1632 warnings
+  /usr/lib/python3.13/ast.py:602: DeprecationWarning: Constant.__init__ missing 1 required positional argument: 'value'. This will become an error in Python 3.15.
+    return Constant(*args, **kwargs)
+
+tests/test_report_routes.py: 2862 warnings
+  /home/vng370/Documents/coding/python/vulnhub/venv/lib/python3.13/site-packages/werkzeug/routing/rules.py:755: DeprecationWarning: ast.Str is deprecated and will be removed in Python 3.14; use ast.Constant instead
+    if isinstance(p, ast.Str) and isinstance(ret[-1], ast.Str):
+
+tests/test_report_routes.py: 2644 warnings
+  /home/vng370/Documents/coding/python/vulnhub/venv/lib/python3.13/site-packages/werkzeug/routing/rules.py:756: DeprecationWarning: Attribute s is deprecated and will be removed in Python 3.14; use value instead
+    ret[-1] = ast.Str(ret[-1].s + p.s)
+
+tests/test_report_routes.py: 1322 warnings
+  /home/vng370/Documents/coding/python/vulnhub/venv/lib/python3.13/site-packages/werkzeug/routing/rules.py:756: DeprecationWarning: ast.Str is deprecated and will be removed in Python 3.14; use ast.Constant instead
+    ret[-1] = ast.Str(ret[-1].s + p.s)
+
+tests/test_report_routes.py: 12 warnings
+  /home/vng370/Documents/coding/python/vulnhub/venv/lib/python3.13/site-packages/sqlalchemy/sql/schema.py:3624: DeprecationWarning: datetime.datetime.utcnow() is deprecated and scheduled for removal in a future version. Use timezone-aware objects to represent datetimes in UTC: datetime.datetime.now(datetime.UTC).
+    return util.wrap_callable(lambda ctx: fn(), fn)  # type: ignore
+
+tests/test_report_routes.py::test_generate_report_with_filters
+  /home/vng370/Documents/coding/python/vulnhub/api/middleware/session_config.py:60: DeprecationWarning: datetime.datetime.utcnow() is deprecated and scheduled for removal in a future version. Use timezone-aware objects to represent datetimes in UTC: datetime.datetime.now(datetime.UTC).
+    session['last_activity'] = datetime.utcnow()
+
+tests/test_report_routes.py::test_generate_report_with_filters
+  /home/vng370/Documents/coding/python/vulnhub/api/services/report_generator/base_report.py:32: DeprecationWarning: datetime.datetime.utcnow() is deprecated and scheduled for removal in a future version. Use timezone-aware objects to represent datetimes in UTC: datetime.datetime.now(datetime.UTC).
+    self.generated_at = datetime.utcnow()
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+=========================== short test summary info ============================
+FAILED tests/test_report_routes.py::test_generate_report_with_filters - asser...
+====================== 1 failed, 13633 warnings in 7.02s =======================
