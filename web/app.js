@@ -171,6 +171,14 @@ document.addEventListener('DOMContentLoaded', () => {
         const password = document.getElementById('regPassword').value;
         const errorDiv = document.getElementById('loginError');
 
+        // Password complexity validation
+        const passwordRegex = /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[!@#$%^&*(),.?":{}|<>]).{8,}$/;
+        if (!passwordRegex.test(password)) {
+            errorDiv.textContent = 'Password must be at least 8 characters long and contain at least one uppercase letter, one lowercase letter, one digit, and one special character.';
+            errorDiv.style.display = 'block';
+            return;
+        }
+
         try {
             const response = await originalFetch('/api/auth/register', {
                 method: 'POST',

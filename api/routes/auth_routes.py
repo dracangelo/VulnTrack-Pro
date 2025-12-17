@@ -222,10 +222,15 @@ def register():
     from werkzeug.security import generate_password_hash
     from api.extensions import db
     from api.models.role import Role
+    from api.middleware.input_validation import validate_password_complexity
     
     data = request.get_json()
     if not data or 'username' not in data or 'password' not in data or 'email' not in data:
         return jsonify({'error': 'Missing required fields'}), 400
+        
+    is_valid, error_message = validate_password_complexity(data['password'])
+    if not is_valid:
+        return jsonify({'error': error_message}), 400
         
     if User.query.filter((User.username == data['username']) | (User.email == data['email'])).first():
         return jsonify({'error': 'Username or email already exists'}), 409
@@ -337,10 +342,15 @@ def register_with_invite():
     from werkzeug.security import generate_password_hash
     from api.extensions import db
     from datetime import datetime
+    from api.middleware.input_validation import validate_password_complexity
     
     data = request.get_json()
     if not data or 'token' not in data or 'username' not in data or 'password' not in data:
         return jsonify({'error': 'Missing required fields'}), 400
+
+    is_valid, error_message = validate_password_complexity(data['password'])
+    if not is_valid:
+        return jsonify({'error': error_message}), 400
         
     token = data['token']
     invite = Invite.query.filter_by(token=token, is_used=False).first()

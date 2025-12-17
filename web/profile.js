@@ -129,6 +129,12 @@ async function updatePassword(event) {
         return;
     }
 
+    const passwordRegex = /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[!@#$%^&*(),.?":{}|<>]).{8,}$/;
+    if (!passwordRegex.test(password)) {
+        UI.toast('Password must contain at least one uppercase letter, one lowercase letter, one digit, and one special character.', 'warning');
+        return;
+    }
+
     await UI.asyncOperation(async () => {
         const response = await fetch('/api/auth/me', {
             method: 'PUT',

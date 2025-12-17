@@ -10,8 +10,13 @@ services:
     environment:
       - FLASK_ENV=development
       - DATABASE_URL=postgresql://vulntrack:password@db:5432/vulntrack
+      - OPENVAS_HOST=openvas
+      - OPENVAS_PORT=9390
+      - OPENVAS_USERNAME=admin
+      - OPENVAS_PASSWORD=admin
     depends_on:
       - db
+      - openvas
 
   db:
     image: postgres:13
@@ -22,5 +27,17 @@ services:
     volumes:
       - postgres_data:/var/lib/postgresql/data
 
+  openvas:
+    image: securecompliance/gvm
+    ports:
+      - "9390:9390"
+      - "8080:9392" # Web interface
+    environment:
+      - USERNAME=admin
+      - PASSWORD=admin
+    volumes:
+      - openvas_data:/var/lib/gvm
+
 volumes:
   postgres_data:
+  openvas_data:
